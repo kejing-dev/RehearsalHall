@@ -1,0 +1,1285 @@
+{
+  "appId": "rehearsal-hall",
+  "name": "演讲排练厅 Rehearsal Hall",
+  "nameEn": "Rehearsal Hall",
+  "nameZh": "演讲排练厅",
+  "packageName": "io.embodit.rehearsalhall",
+  "version": "v1.1 设计包（门 B 第 1 次「改」：观众改卡通风）",
+  "oneLiner": "站上坐满观众的礼堂把稿子讲一遍；讲完灯一亮，座位被你的目光染色——哪片观众你一眼都没看，一眼就知道。",
+  "oneLinerEn": "Give your talk on the stage of a full auditorium. When the lights come up, every seat is tinted by how long you looked at it, so the part of the room you ignored is obvious at a glance.",
+  "source": {
+    "pool": "state.json pool[rehearsal-hall]（调研第 2 轮，score 5，五问全过，tags：跨品类 / 演讲 / 头向热力图 / 骨架 C / 批评 ok）+ 池文档 YCiPSR2LfnEgFRq4uVvJy1 #rehearsal-hall",
+    "references": [
+      {
+        "name": "VirtualSpeech（Meta Quest，3.7★/113，Learning/Productivity）",
+        "use": "结构来源：选场景（会议室 → 礼堂）→ 导入幻灯片 → 讲 → 报告（眼神接触、时长）→ 回看。搬：两种场景、幻灯片 + 备注、计时、视线报告、回看"
+      },
+      {
+        "name": "VirtualSpeech 另一商店条目（3.4★/66）",
+        "use": "眼神接触评分 + 实时语音分析的存在证明；本应用只取「音量 / 停顿」这一层，不做语音识别"
+      },
+      {
+        "name": "Orator（Meta Quest，2.7★/3，Early Access）",
+        "use": "写实观众注视讲者的形态证明；观众朝你转头、会走神的做法从这里来"
+      }
+    ],
+    "port": {
+      "keep": [
+        "礼堂场景（会议室推到 v1.1）",
+        "幻灯片 + 备注提词",
+        "按页计时与总时长",
+        "视线报告与回看"
+      ],
+      "spatialize": [
+        "STAGE_FULL 礼堂（基本形状拼装 + IBL），讲台上一块附着面板当提词器",
+        "约 170 个程序生成的圆头卡通观众（门 B 改），头朝向你（ECS 分批降频 LookAt），会眨眼点头，某列长时间没被看就低头看手机",
+        "HMD 朝向逐帧采样 → 每个座位、9 个分区的注视秒数；讲完在礼堂里给座位上色 + 分区牌「左后 0 秒」",
+        "幻灯片用 Android PdfRenderer 转图，或直接导入图片"
+      ],
+      "drop": [
+        "语速 / 口头禅 / 语音转文字（v1.1）",
+        "AI 提问",
+        "多人",
+        "MR 客厅模式"
+      ],
+      "addedByStation": [
+        "无麦克风也能完整用：麦克风只给「开口占比 / 最长停顿 / 音量偏小」三项，没开就隐藏这一栏并说明（父 session 要求：没有麦克风要优雅降级）"
+      ],
+      "deferred": [
+        "会议室场景（v1.1；评审 R1-1：1–2 天研发装不下，门 B 可要回）",
+        "入场交谈声与结束掌声（v1.1，R1-1）"
+      ]
+    }
+  },
+  "frame": {
+    "user": "要上台讲话但缺练习场的人：答辩的学生、要做产品演示或季度汇报的职员、第一次在婚礼 / 年会致辞的人。在家里客厅站着，一次 5–20 分钟；通常在正式讲之前练 2–3 遍。",
+    "job": "把稿子对着一屋子人完整讲一遍，讲完知道两件事：哪一片观众我从来没看过；哪一页讲超时了。",
+    "whySpatial": "「看全场」是一个身体动作——转头扫过左右各 48°、12 米深的阶梯扇形座位，前排要低头看、后排要抬头看。只有头显能同时给出真实尺度的观众，又能知道你的头朝向哪里；结论也就地画回座位上，比一张图表更好记。",
+    "counterfactual2D": [
+      {
+        "affordance": "方向",
+        "flat": "对着笔记本摄像头练，眼睛一直看屏幕；软件只能说「你看镜头 60%」",
+        "spatial": "观众分布在你左右各 48° 的扇形里，左后排要真的转头才看得到；报告精确到「左后区 0 秒」"
+      },
+      {
+        "affordance": "尺度",
+        "flat": "屏幕上一排小头像，前排后排一样大",
+        "spatial": "后排离你 12 米、头比你眼睛高 1.5 米（阶梯剧场），前排在你脚下；第一次站上去就有真实的压迫感，这正是要练的"
+      },
+      {
+        "affordance": "身体",
+        "flat": "对镜子练，镜子里只有自己",
+        "spatial": "练的是真实动作：低头看讲台、转身看大屏、抬头扫后排。系统把这三种分开计时（看讲台 30% / 背对观众 8%）"
+      },
+      {
+        "affordance": "随时间变化",
+        "flat": "录像回放只看到自己的脸",
+        "spatial": "回看时一束光按你当时的头朝向扫过座位，同步显示那一页；哪一页你只盯着讲台，一目了然"
+      }
+    ],
+    "assumptions": [
+      {
+        "text": "头朝向足以代表「看哪里」（不用眼动）",
+        "confidence": "中高",
+        "ifWrong": "VirtualSpeech 也用头朝向；若真机发现误差大，v1.1 接眼动（需权限），报告口径不变"
+      },
+      {
+        "text": "用户原地站着讲，最多在 2 m 内走动",
+        "confidence": "高",
+        "ifWrong": "走得更远时仍按头的实际位置算朝向，礼堂不跟人走"
+      },
+      {
+        "text": "大多数人第一次没有自己的 PDF 在头显里",
+        "confidence": "高",
+        "ifWrong": "内置一份示例稿（三分钟自我介绍，5 页，中英各一份）+「不用幻灯片，直接讲」，第一次打开就能按「开始」"
+      },
+      {
+        "text": "麦克风可能拿不到（拒绝授权 / 系统弹窗在 Stage 里不出 / 模拟器无输入）",
+        "confidence": "中",
+        "ifWrong": "麦克风相关只出现在报告「声音」一栏；拿不到就整栏换成说明，其他功能完全不受影响"
+      },
+      {
+        "text": "头朝向比眼睛实际看的范围粗：人不转头也能扫 ±10–15°",
+        "confidence": "高",
+        "ifWrong": "所以结论只讲分区，座位色块做邻座平滑，不宣称「精确到人」（R1-6）"
+      }
+    ]
+  },
+  "alternatives": [
+    {
+      "id": "A",
+      "name": "礼堂讲台 + 座位染色（选中）",
+      "concept": "STAGE_FULL 全沉浸礼堂，你站在台上讲台后；一块讲台附着面板做准备、提词、报告；讲完灯亮、座位按注视时长染色",
+      "signature": "讲完灯亮，座位被目光染色，冷区插牌「左后 0 秒」",
+      "risk": "Full 风格要自带环境光（IBL），否则全黑；120 个头转动的性能",
+      "verdict": "选中：方向、尺度、身体、时间四项都只有全沉浸能给；批评者要求的 Full Space 满足"
+    },
+    {
+      "id": "B",
+      "name": "客厅里的观众（MR）",
+      "concept": "STAGE_MIXED，把 10–30 个虚拟观众摆在自己客厅里",
+      "signature": "沙发上坐着评委",
+      "risk": "客厅 3–4 米就到墙，摆不下礼堂；真实家具和虚拟人穿插",
+      "verdict": "落选：失去尺度（练不到后排 12 米），池条目已把 MR 客厅模式列入 drop"
+    },
+    {
+      "id": "C",
+      "name": "桌上迷你礼堂（体积窗口）",
+      "concept": "Shared Space 里一个 0.6 m 的礼堂模型，你对着模型讲，记录你看模型的哪里",
+      "signature": "手办礼堂",
+      "risk": "看模型只要转眼睛，不用转头；练不到真实动作",
+      "verdict": "落选：没有身体和尺度，等于平面热力图"
+    },
+    {
+      "id": "D",
+      "name": "提词器窗口",
+      "concept": "Shared Space 一块提词 + 计时面板，背后是自己的房间",
+      "signature": "悬浮提词器",
+      "risk": "没有观众",
+      "verdict": "落选：2D 平板就能做，空间不承重"
+    }
+  ],
+  "archetype": "C",
+  "archetypeNote": "骨架 C（沉浸氛围 + 极简面板）。容器 STAGE_FULL（批评者 / 父要求：「站在坐满观众的礼堂」的沉浸场景）。不用 passthrough、平面检测、锚点、环境网格。唯一的 2D 面板是讲台附着面板；报告的主体画在礼堂里。",
+  "container": {
+    "type": "STAGE_FULL",
+    "space": "Full Space（默认 Stage，StageStyle.Full）。打开应用直接站在台上，没有 Shared Space 窗口。",
+    "windowModel": "stage_with_lectern_panel：讲台顶面一块世界固定的附着面板（所有 2D 操作都在这一块里换页）+ 报告时 9 块分区牌（世界固定小面板，只读）。没有 WindowContainer、没有体积窗口、没有跟头 HUD。",
+    "lighting": "SDK 6.1 文档：StageStyle.Full 下 StageEnvironmentLightingComponent 提供全部环境光；Mixed 下不生效。本应用挂一个 StageEnvironmentLightingComponent(ImageBasedLightSource.Single(tex), 强度)（打包一张 CC0 室内 HDRI，格式见 N1），再加 1 盏 SpotLightComponent 照讲台位。灯光切换（场灯亮 / 暗）= 改 IBL 强度 + 天花自发光条亮度；运行时改强度能否生效未确认，备选是重设组件（N1）。",
+    "notes": [
+      "沿用 Spatial Ruler 的平台结论：Stage 内 AlertDialog 不出内容、SnackbarHost 不可用 → 所有确认与提示都在讲台面板内换页 / 内嵌提示条完成，不弹系统对话框",
+      "HMDTrackingProvider 只在 Full Space 可用（SDK 6.1 文档 hmd-tracking「Limitations」），本应用恰好是 Full Space；ECS 里读 latestData，不经过 Compose 状态（低延迟规则）",
+      "生命周期：Stage 关闭 / 应用暂停时停 HMDTrackingProvider、停 AudioRecord、暂停当前排练（进入 S07），实体随 Stage 释放",
+      "后台恢复与重启（R1-2）：S05 → 回 S01；S06 → S07；S10 → 停在当前位置；S03 → 继续导入（完成后回 S02）；进程被杀 → 下次启动回 S01，这次排练不保存（讲台面板顶部提示行说一次「上次排练中断了，没有保存」）",
+      "站位取值（R1-2）：Stage 打开 / 重新站位后，等 1.0 s，再取 0.5 s 窗口内头位姿的中位数（SDK 经验条目：热恢复后可能读到 recenter 前的旧 HMD 高度，所以不取第一帧）"
+    ]
+  },
+  "referenceRepo": {
+    "primary": "C:/Users/Admin/Downloads/spatial-ruler（Spatial Ruler：默认 Stage、AttachmentPanel、HeadTracker 头部位姿、debug 广播）",
+    "secondary": "SDK 6.1 示例「Welcome to PICO OS 6」Step 8（Stage 单独配 IBL）；SDK 示例 sample_mesh MeshInstancesBuildEntity（实例化观众 / 座椅）；PICO 示例「万花筒」（骨架 C，本地路径未确认）"
+  },
+  "input": {
+    "modes": [
+      "眼手：注视 + 捏合（默认）",
+      "手柄：射线 + 扳机"
+    ],
+    "rule": "只有一种手势：「指向 + 捏一下」点面板上的键。讲中时手柄模式额外支持：右手扳机（射线没指着面板时）= 下一页，左手扳机 = 上一页——像翻页笔。没有拖拽、没有双手、没有打字。",
+    "gazeSource": "注视统计只用头部朝向（HMD 正前方），不用眼动、不需要眼动权限"
+  },
+  "spatialLayout": {
+    "units": "米、度。+X 右、+Y 上、+Z 朝向用户（Stage 坐标原点在脚下）",
+    "placement": "Stage 打开（或「重新站位」）后等 1.0 s，取 0.5 s 窗口内头位姿的中位数：头的水平位置 = 讲者站位 P，头偏航 = 面向观众的方向，眼高 eyeH。整个礼堂以 P 为基准摆好，之后世界固定，不跟人走。所有记录（采样 yaw / pitch、座位与分区）都存礼堂局部坐标（相对 P 与「面向观众」方向），重新站位后回看与色块仍对得上（R2-3）",
+    "hall": {
+      "stage": "舞台面与用户真实地面同高（y = 0）：宽 9 m、进深 5 m；P 在舞台前沿后 1.6 m、左右居中（讲台位）。台口前沿有一条 2 cm 暖色灯带，表明「台边」。两侧黑色侧幕，后墙一块 5.0 × 2.8 m 投影幕（下沿 y = 1.2 m），在 P 正后方 3.4 m",
+      "seats": "阶梯剧场：观众席第 1 排地面在 y = −0.9 m（舞台高 0.9 m），每排后退 0.95 m、抬高 0.35 m；第 9 排离 P 12.2 m、地面 y = +1.9 m，坐着的头高 y ≈ 3.1 m（比讲者眼睛高约 1.5 m）。座数随半径增加、座距约 0.75 m（含过道）：10 / 12 / 14 / 17 / 19 / 21 / 23 / 25 / 27 = 168 座，坐满。按眼高 1.6 m 算，各排头点俯仰约：−15.8° / −9.7° / −5.3° / −1.9° / +0.7° / +2.8° / +4.4° / +5.8° / +7.0°，前 / 中 / 后三档能靠抬头低头分开（R2-1：0.19 m 时后 6 排挤在 7° 内，分不开）。中间与两侧各一条台阶过道，两侧墙上绿色「安全出口」灯",
+      "zones": "9 个分区 = 列 × 档。列按水平角：左 −48°…−16°、中 −16°…16°、右 16°…48°。档按俯仰角：边界取相邻两排头点俯仰的中点，在礼堂建好时按实际 eyeH 算一次（眼高 1.6 m 时：前 < −3.6°、中 −3.6°…+3.6°、后 > +3.6°）。每区约 12–25 座（后排区座多）",
+      "lectern": "木质讲台 0.60 × 0.45 m（顶面高 = eyeH − 0.48，夹在 0.95–1.20 m），放在 P 正前方 0.42 m，顶面朝讲者倾斜 30°；从眼睛看讲台面板中心约俯 49°，与前排观众（约俯 16°）分得开",
+      "style": "平涂暖色卡通风，和观众统一：舞台暖木 #B07A4F、台口一条琥珀灯带、圆角阶梯（深梅色 #3A2A3A / #43304A 交替）、绒布红椅背 #8E2433 圆角、木饰侧墙带竖条纹、天花几条柔和暖白灯条；同一个 toon 材质，少量自发光"
+    },
+    "audience": {
+      "figure": "圆头卡通人（坐姿）：头身比约 1:1.8，头半径 0.17 m（比真人头大约 1.5 倍，12 m 外也能看清朝向和表情），身体是圆角梯形躯干 + 两条圆柱手臂，坐在绒布红椅上只露上半身。五官做在头前方的一张小贴图上（豆豆眼 + 高光点、短眉、小嘴、腮红），没有鼻子耳朵细节。发型、肤色、衣服颜色、眼镜按座位号哈希固定，每次进礼堂都是同一批人。全部程序生成（基本形状拼装），不依赖外部模型；详见 audienceStyle",
+      "headLook": "HeadLookSystem（ECS）：每帧只更新 1/6 的头（≈20 个），每个头按最大 60°/s 转向目标；目标默认 = 讲者头位置 + 每人固定的 ±4° 随机偏移；每人每 8–20 s 随机瞥一眼投影幕 1–2 s（像真人）",
+      "drift": "走神（设置里可关，默认开；R1-5 收紧）：只按左 / 中 / 右 3 列判定；讲中 60 s 后才启用；某列连续 60 s 没被看（该列注视 < 0.5 s），该列中、后排观众在 3 s 内陆续低头 35° 看手里一块发微光的手机（卡通小方块）；同一时刻最多 1 列在走神；讲者看向该列累计 0.5 s 后 3 s 内陆续抬头。注视判定用固定的座位头点，不跟着低下去的头动。只用于提醒，不扣分、不出声",
+      "lightsLevels": "场灯三档：入场（全亮）→ 讲中（场灯 15%、舞台聚光）→ 报告（场灯 70%、座位染色）。v1 无环境声（交谈声 / 掌声推到 v1.1）"
+    },
+    "lecternPanel": "见 panels[0]。在 P 前 0.42 m、比眼睛低约 0.48 m，低头约 35–45° 正好看到——这正是真实讲台的位置，所以「看讲台」能被单独计时",
+    "reportOverlay": "报告与回看时：每个座位椅背上方一个小色块（实例化，5 档颜色 = 5 个 MeshInstancesResource，从冷灰蓝到暖琥珀；色块用本座与左右邻座注视秒数的加权平滑值 0.25/0.5/0.25，避免「精确但不准」）；9 块分区牌浮在各分区上方 1.2 m（只读，1.20 × 0.36 m，朝向讲者），写「左后 · 0 秒」，冷区 ◯、一般 ◐、热区 ●",
+    "replayBeam": "回看时从讲者头位置射出一束半透明暖光锥（顶角 10°），按记录的头朝向移动，扫到的座位短暂亮起"
+  },
+  "panels": [
+    {
+      "id": "lectern",
+      "name": "讲台面板 Lectern Panel",
+      "surface": "Stage 内 Planar AttachmentPanel，挂在讲台顶面（世界固定，随讲台倾斜 30°）",
+      "sizeDp": {
+        "default": [
+          760,
+          480
+        ],
+        "min": [
+          760,
+          480
+        ],
+        "max": [
+          760,
+          480
+        ]
+      },
+      "physicalM": [
+        0.46,
+        0.29
+      ],
+      "viewDistanceM": 0.6,
+      "material": "Material.Regular 玻璃（系统默认，根面不另画背景）",
+      "pages": [
+        "setup",
+        "decks",
+        "importing",
+        "importError",
+        "micAsk",
+        "settings",
+        "history",
+        "confirm",
+        "countdown",
+        "speaking",
+        "paused",
+        "endConfirm",
+        "tooShort",
+        "report",
+        "replay"
+      ],
+      "rule": "同一时刻只显示一页；每页顶部一条 sui-title-bar（标题 + 返回 / 关闭），主按钮永远在右下角同一位置；最小点击目标 56 dp",
+      "densityCap": "讲中页 = 1 张幻灯片缩略 + 1 段备注 + 2 个计时 + 4 个键；其余页 ≤ 6 个可点项",
+      "glassFallback": "场灯 15% 时 Regular 玻璃可能发暗、对比不够（R1-9 / taste A4）：研发站实测；不够就在面板内层加一块 fillPrimary 底（根面仍是系统玻璃），并做「S06 ↔ S09 反复进出 30 次」截图自测"
+    },
+    {
+      "id": "zoneSigns",
+      "name": "分区牌 Zone Signs ×9",
+      "surface": "Stage 内只读小 AttachmentPanel，世界固定在分区上方，朝向 P",
+      "sizeDp": {
+        "default": [
+          320,
+          96
+        ]
+      },
+      "physicalM": [
+        1.2,
+        0.36
+      ],
+      "content": "「左后 · 0 秒」+ ◯/◐/● 标记（冷 / 一般 / 热，不只靠颜色）",
+      "visibleIn": [
+        "S09",
+        "S10"
+      ]
+    }
+  ],
+  "pages": {
+    "setup": "S01 准备：标题栏「演讲排练厅」+ 右侧 2 个图标键（历史 ⟲、设置 ⚙）。① 稿子卡：缩略图 + 标题 + 「5 页 · 有备注」+ 文字键「换一份」→ S02；② 目标时长 stepper「3 分钟」（1–60，默认 = 稿子上次的值，新稿 = 页数 × 1 分钟，示例稿 3 分钟）；③ 麦克风一行「麦克风 · 只用来算音量和停顿」+ 开关（关时副标题「不开也能练」）；④ 上次一行（有记录时）「上次：6/9 区看过 · 超时 0:42」；主按钮「开始排练」。场景固定礼堂，没有场景选择（会议室 v1.1）",
+    "decks": "S02 选稿：列表——「示例：三分钟自我介绍」（内置）、已导入的稿子（缩略 + 页数 + 导入日期，尾部 ⋯ 菜单：导入备注 TXT / 删除）、「不用幻灯片，直接讲」；底部按钮「导入 PDF 或图片…」（调系统文件选择器），按钮下一行小字「先把文件放进头显的「下载」文件夹（文件管理器或 USB 都行）。PPT 导出的 PDF 不带备注，备注可另外导入一个 TXT。」（R1-7）",
+    "importing": "S03 导入中：「正在读取 第 7 / 24 页」+ 进度条 + 取消",
+    "importError": "S04 导入失败：一句原因（「这个 PDF 有密码，打不开」/「不是 PDF 或图片」/「超过 60 页，只导入了前 60 页」——最后一种是提示，不算失败）+「重新选」「返回」",
+    "micAsk": "S13 麦克风说明（第一次打开麦克风开关时）：「要听你的声音吗？只在头显里算音量和停顿，不录音；本应用没有网络权限，什么都传不出去。」主按钮「允许」→ 系统授权弹窗；次按钮「不用麦克风」",
+    "settings": "S11 设置：语言分段（跟随系统 / 中文 / English）；开关：观众会走神；「重新站位」按钮（礼堂按现在的位置重新摆）；麦克风状态行（已允许 / 未允许 · 去系统设置）；「清空所有排练记录」（→ S14 确认）",
+    "history": "S12 历史：当前稿子最近 10 次：日期 · 时长 / 目标 · 看过的区数（如 7/9）；点一行 → 打开那次的报告（S09+只读）",
+    "confirm": "S14 确认：「删除这份稿子？它的 3 次排练记录也会删掉。」/「清空所有排练记录？」+「删除」（危险色）「取消」",
+    "countdown": "S05 倒数：大号 3 · 2 · 1 + 小字「先别说话，看着观众」（倒数这 3 秒用来测底噪）；场灯同步暗下、观众转头看你；右下「取消」",
+    "speaking": "S06 讲中：顶部左「02:41 / 05:00」（总时长 / 目标，大号等宽）右「本页 0:38」；左侧幻灯片缩略（300 × 169 dp）+ 页码「3 / 12」；右侧备注（18 dp，可滚动，没有备注时显示下一页缩略）；底部「‹ 上一页」「下一页 ›」（大）+「⏸」+「结束」；麦克风开着时左上一个小音量点（有声音就亮）。不用幻灯片时（M7）：只有大号计时 +「⏸」「结束」",
+    "paused": "S07 暂停：讲中页变暗，中间「已暂停 · 02:41」+「继续」「结束」+ 文字键「重新站位」（从后台回来礼堂错位时用；不清计时）；观众保持不动",
+    "endConfirm": "S08 结束确认：「结束这次排练？」+「结束，看报告」（主）「继续讲」",
+    "report": "S09 报告：标题栏「这次排练」+ 分段「目光 | 时间 | 声音」。顶部一行「比上次：看过 5→7 区 · 超时 0:42→0:10」（有上一次时，R1-8）。目光：一句结论（例「后排看得太少：左后 0 秒、右后 4 秒」；全程几乎没看观众 →「这次几乎没看观众：看讲台 71% · 背对观众 25%」）+ 3×3 小方格图（与礼堂分区一一对应，格内秒数 + ◯/◐/●）+ 一行「看观众 62% · 看讲台 30% · 背对观众 8%」。时间：「5:42 / 目标 5:00 · 超出 0:42」+ 每页一根横条（实际 vs 平均每页目标，超的那段琥珀色）；不用幻灯片时只有总时长。声音：开口 78% · 最长停顿 6 秒（第 3 页）· 音量 正常 / 偏小；没开麦克风 → 整栏换成降级文案。底部「回看」「再讲一遍」（主）「完成」。只读（从历史进入）时底部只有「回看」「返回」",
+    "replay": "S10 回看：幻灯片缩略（随时间换页）+ 进度条（sui-linear-progress，带当前时间「1:12 / 5:42」）+「▶ / ⏸」+「回到报告」。固定 4× 速度自动播（5 分钟排练约 75 s 看完）；礼堂里光锥按记录移动（R1-1：去掉拖动与换速）",
+    "tooShort": "S15 太短：讲中不到 15 s 就结束 →「不到 15 秒，这次没有存。」+「再来一次」（→ S05）「返回」（→ S01）"
+  },
+  "entities3d": [
+    {
+      "id": "hallShell",
+      "what": "礼堂壳：舞台、观众席阶梯地面、侧墙木饰面、天花、侧幕、台口灯带、安全出口灯、过道台阶",
+      "count": "≤10 个合并静态网格",
+      "material": "同一个 toon 材质（平涂 + 两阶明暗）；台口灯带、安全出口、天花灯条自发光"
+    },
+    {
+      "id": "screen",
+      "what": "投影幕：5.0 × 2.8 m 平面，贴当前页图片（纹理随翻页替换）",
+      "count": "1",
+      "material": "Unlit（投影应自发光，不受场灯影响）"
+    },
+    {
+      "id": "lectern",
+      "what": "讲台（木）+ 面板挂点",
+      "count": "1 网格 + 1 面板",
+      "material": "PBR 木"
+    },
+    {
+      "id": "seats",
+      "what": "168 个圆角剧院椅（绒布红）",
+      "count": "1 个 MeshInstancesResource（168 实例）",
+      "material": "PBR 绒布 #8E2433"
+    },
+    {
+      "id": "bodies",
+      "what": "168 个卡通坐姿躯干 + 手臂（8 种衣色）",
+      "count": "1 个 MeshInstancesResource（toon 材质，每实例颜色；不行就 8 个按衣色分组）",
+      "material": "toon ShaderGraph"
+    },
+    {
+      "id": "heads",
+      "what": "168 个卡通头（含 6 种发型、20% 眼镜、表情面片）",
+      "count": "头 1 + 发型 6 + 眼镜 1 + 表情面片 1 个 MeshInstancesResource，同一个实例 id 一起 update(id, transform, customData)；表情用 customData 选图集格（N11）",
+      "behavior": "HeadLookSystem 每帧更新 1/6（≈28 个）"
+    },
+    {
+      "id": "seatTint",
+      "what": "报告时每座一块椅背上方小色块（0.30 × 0.12 m）",
+      "count": "5 个 MeshInstancesResource（5 档颜色，共 168 实例）",
+      "material": "Unlit"
+    },
+    {
+      "id": "beam",
+      "what": "回看光锥（顶角 10°，长 13 m）",
+      "count": "1",
+      "material": "Unlit 半透明 #FFE3B0 18%"
+    },
+    {
+      "id": "spot",
+      "what": "舞台聚光（SpotLightComponent，照讲台位）",
+      "count": "1 盏灯",
+      "material": "—"
+    },
+    {
+      "id": "ibl",
+      "what": "StageEnvironmentLightingComponent（CC0 室内 HDRI）",
+      "count": "1",
+      "material": "—"
+    }
+  ],
+  "budget": {
+    "triangles": "礼堂壳 ≤8k + 椅子 168 × 200 + 躯干和手臂 168 × 320 + 头 168 × 120 + 发型 168 × ≤150 + 眼镜 34 × 60 ≈ ≤125k",
+    "entities": "网格 / 实例资源 ≤25 + 面板 1 + 分区牌 9 + 灯 2 ≈ ≤40（头走实例更新）",
+    "perFrame": "HeadLookSystem 每帧 ≤28 个实例（头 + 发 + 眼镜 + 脸同一变换）；AudienceIdleSystem 每帧 ≤28 个实例的呼吸 / 眨眼（与 HeadLook 同一批轮转）；GazeSystem 不变",
+    "textures": "1 张 HDRI（≤1k）+ 1 张 256×256 表情图集 + 当前页幻灯片 1 张（≤1600 × 900）",
+    "panels": "同时 ≤10（讲台 1 + 分区牌 9）",
+    "storage": "每次排练采样 10 Hz × 5 字节 → 1 小时 ≈ 180 KB；稿子图片按页 ≤300 KB"
+  },
+  "gazeModel": {
+    "sample": "GazeSystem（ECS）每帧读 HMDTrackingProvider.latestData：头位置 h、正前方 f",
+    "classify": [
+      "看讲台：f 与 (讲台面板中心 − h) 夹角 < 20°",
+      "背对观众：f 的水平朝向与「面向观众」方向夹角 > 100°（看投影幕或身后）",
+      "看观众：f 指向观众席扇形内（水平 −52°…52°、俯仰 −30°…+25°）",
+      "其他：以上都不是（看天花、看侧幕）"
+    ],
+    "seatDwell": "座位色块用（只作示意）：看观众时，对每个座位的固定头点 s（不随低头动），若 f 与 (s − h) 夹角 < 8°，该座 +dt",
+    "zoneDwell": "分区秒数（R2-1）：看观众的每一帧只记一个区——按 f 的水平角定列、按俯仰角定档（边界见 spatialLayout.hall.zones）。所以 9 区秒数之和 = 看观众总时长，「后排 0 秒」能真实出现",
+    "covered": "分区三档：● 热 ≥ 看观众总时长的 8%；◐ 一般 3%–8%；◯ 冷 < 3%（含 0 秒）。「看过的区」= 非 ◯ 区（S01「上次：6/9 区看过」、S12、比上次都用这个口径，R2-5）。结论与分区牌只讲分区；座位色块只作直观示意",
+    "verdict": "报告结论一句话，按规则拼：看观众 < 10% →「这次几乎没看观众：看讲台 x% · 背对观众 y%」；否则先说 ◯ 区（最多 2 个，按秒数升序），全无 ◯ 区则说最弱的 ◐ 区；看讲台 > 40% 加一句「低头看稿偏多」；背对观众 > 15% 加一句「背对观众偏多」。全部 ● 时说「全场都照顾到了」",
+    "record": "10 Hz 记录一帧：yaw、pitch（各 int16，0.01°）、类别（4 种）、页码 → 回看与历史",
+    "pausedBehavior": "暂停、结束确认（S08）、倒数、准备时都不统计、不计时（R2-4）",
+    "minLength": "讲中累计 < 15 s 结束 → S15，不存"
+  },
+  "voiceModel": {
+    "when": "麦克风已授权且开关打开时，讲中 AudioRecord 16 kHz 单声道；暂停时停",
+    "compute": "后台线程每 100 ms 算一次 RMS（dBFS）。底噪 = 倒数 3 秒里的第 10 百分位；开口 = RMS > 底噪 + 12 dB",
+    "metrics": [
+      "开口占比 = 开口帧 / 讲中总帧",
+      "停顿 = 连续不开口 ≥ 3 s；报告最长一次（秒 + 页码）和次数",
+      "音量 = 开口帧 RMS 中位数；< −38 dBFS 记「偏小」，否则「正常」（不做绝对校准，只做提醒）"
+    ],
+    "privacy": "不保存音频，只保存三个数字；不联网",
+    "degrade": [
+      "开关关闭 / 用户选「不用麦克风」→ 报告「声音」栏显示「这次没开麦克风，所以没有声音数据。」+「下次打开」（打开开关；首次仍先走 S13）",
+      "系统拒绝授权 → 开关回到关，提示条「没有拿到麦克风权限，不开也能练」；设置里显示「未允许 · 去系统设置」",
+      "授权了但全程没有超过底噪的声音（模拟器 / 麦克风被占用）→「声音」栏显示「全程没听到声音——麦克风可能没收音。」，不显示数字",
+      "AudioRecord 初始化失败 → 同上一条，记日志"
+    ]
+  },
+  "deckModel": {
+    "sample": "内置「示例：三分钟自我介绍 / Sample: A three-minute introduction」5 页（程序生成的简洁图片 + 每页 2–3 句备注），中英各一份，跟随语言",
+    "import": "系统文件选择器（ACTION_OPEN_DOCUMENT，类型 application/pdf、image/*、text/plain）。PDF → PdfRenderer 每页渲染成 1600 px 宽 PNG（最多 60 页）；多张图片 → 按文件名排序成页；PDF 有密码 → S04",
+    "notes": "可选：给稿子导入一个 TXT，用单独一行 --- 分隔每页备注；页数对不上时按顺序对，多的忽略。没有备注的页，讲中页右侧显示下一页缩略。PPT 导出的 PDF 不带备注，S02 写明",
+    "noSlides": "「不用幻灯片，直接讲」：讲中页只有大号计时 + 「结束」；投影幕显示礼堂名牌；报告「时间」栏只显示总时长",
+    "getFiles": "应用没有网络权限：用户自己用系统文件管理器或 USB 把 PDF / 图片 / TXT 放进头显「下载」文件夹，再用系统选择器选（S02 有一行说明）",
+    "delete": "删除稿子 = 一起删掉它的所有排练记录（S14 文案写明「它的 N 次排练记录也会删掉」，R2-8）"
+  },
+  "dataModel": {
+    "storage": "全离线；应用私有目录：decks/<id>/page-NN.png + deck.json；sessions/<id>.json（每份稿子保留最近 20 次）；SharedPreferences：语言、开关、firstRunDone、interruptedFlag",
+    "deck": "{ id, title, source: sample|pdf|images|none, pageCount, notes[], targetMinutes, createdAt }",
+    "session": "{ id, deckId, scene: hall, startedAt, durationSec, targetSec, pageTimes[], zoneDwell[9], seatDwell[168], classTotals{audience,lectern,back,other}, samples(base64：yaw/pitch int16 + 类别 + 页码), voice: null | { speakRatio, longestPauseSec, longestPausePage, pauseCount, level: normal|quiet } | { noSignal: true } }"
+  },
+  "states": [
+    {
+      "id": "S00",
+      "name": "进场 Loading",
+      "kind": "base",
+      "reach": "启动；「重新站位」",
+      "scene": "礼堂从黑淡入 0.8 s，场灯全亮；等 1.0 s 再取 0.5 s 头位姿中位数定站位",
+      "panel": "讲台面板空（只有标题）",
+      "qaCapture": "debug state S00 保持在载入画面后截（R2-6）",
+      "exits": [
+        "加载完 → S01（上次被杀中断时，S01 顶部提示行说一次「上次排练中断了，没有保存」）"
+      ]
+    },
+    {
+      "id": "S01",
+      "name": "准备 Setup",
+      "kind": "base",
+      "reach": "进场后；报告「完成」；各子页返回",
+      "panel": "setup 页",
+      "scene": "场灯全亮、观众随意看",
+      "qaCapture": "启动 3 s 后截：讲台面板 + 前方观众；「S01+M8」用 debug killFlag 后重启截",
+      "exits": [
+        "开始排练 → S05",
+        "换一份 → S02",
+        "⚙ → S11",
+        "⟲ → S12（有记录才可点）",
+        "麦克风开关首次打开 → S13"
+      ]
+    },
+    {
+      "id": "S02",
+      "name": "选稿 Decks",
+      "kind": "base",
+      "reach": "S01「换一份」",
+      "panel": "decks 页",
+      "qaCapture": "debug state S02 后截",
+      "exits": [
+        "选一份 → S01（已选）",
+        "导入 PDF 或图片… → 系统选择器 → S03 / 取消回 S02",
+        "⋯ 删除 → S14",
+        "⋯ 导入备注 → 系统选择器 → S02（行内显示「有备注」）",
+        "返回 → S01"
+      ]
+    },
+    {
+      "id": "S03",
+      "name": "导入中 Importing",
+      "kind": "base",
+      "reach": "选择器返回文件",
+      "panel": "importing 页",
+      "qaCapture": "debug 导入一个 24 页 PDF，第 1 s 截",
+      "exits": [
+        "完成 → S02（新稿在最上、已选中）",
+        "失败 → S04",
+        "取消 → S02",
+        "切到后台 → 继续导入，回来时按结果显示"
+      ]
+    },
+    {
+      "id": "S04",
+      "name": "导入失败 Import Error",
+      "kind": "base",
+      "reach": "S03 失败",
+      "panel": "importError 页",
+      "qaCapture": "导入加密 PDF 后截",
+      "exits": [
+        "重新选 → 系统选择器 → 选了 → S03；在选择器里取消 → S02",
+        "返回 → S02"
+      ]
+    },
+    {
+      "id": "S05",
+      "name": "倒数 Countdown",
+      "kind": "base",
+      "reach": "S01 开始；S09「再讲一遍」",
+      "panel": "countdown 页",
+      "scene": "场灯 3 s 内降到 15%，聚光亮，观众转头看你；这 3 秒测麦克风底噪",
+      "qaCapture": "按开始后 1.5 s 截",
+      "exits": [
+        "3 s 后 → S06",
+        "取消 → S01",
+        "切到后台 → S01（没开始就不算）"
+      ]
+    },
+    {
+      "id": "S06",
+      "name": "讲中 Speaking",
+      "kind": "base",
+      "reach": "倒数结束；S07 继续",
+      "panel": "speaking 页",
+      "scene": "场灯 15%、投影幕显示当前页、观众注视你",
+      "qaCapture": "开始后 10 s 截；debug page 3 后再截",
+      "exits": [
+        "下一页 / 上一页 → S06（页变）",
+        "⏸ → S07",
+        "结束 → S08",
+        "应用失焦 / Stage 暂停 → S07"
+      ]
+    },
+    {
+      "id": "S07",
+      "name": "暂停 Paused",
+      "kind": "base",
+      "reach": "S06 ⏸；应用失焦",
+      "panel": "paused 页",
+      "scene": "观众停在原姿势，计时停",
+      "qaCapture": "按 ⏸ 后截",
+      "exits": [
+        "继续 → S06",
+        "结束 → S08",
+        "重新站位 → 礼堂重摆后仍在 S07"
+      ]
+    },
+    {
+      "id": "S08",
+      "name": "结束确认 End Confirm",
+      "kind": "base",
+      "reach": "S06 / S07「结束」",
+      "panel": "endConfirm 页（覆盖讲中页）；计时停",
+      "qaCapture": "按结束后截",
+      "exits": [
+        "结束，看报告 → S09（讲中累计 ≥ 15 s）/ S15（< 15 s）",
+        "继续讲 → 进入前的 S06 / S07"
+      ],
+      "scene": "计时与统计都停（同暂停）；切后台保持在 S08"
+    },
+    {
+      "id": "S09",
+      "name": "报告 Report",
+      "kind": "base",
+      "sub": [
+        "目光",
+        "时间",
+        "声音"
+      ],
+      "reach": "S08 确认；S12 点一条历史（S09+M6 只读）",
+      "panel": "report 页，默认「目光」",
+      "scene": "场灯 3 s 升到 70%，观众抬头，座位色块 + 9 块分区牌出现",
+      "qaCapture": "QA 名「S09·目光」「S09·时间」「S09·声音」「S09·目光+M6」；另截一张从讲台抬头看全场",
+      "exits": [
+        "回看 → S10",
+        "再讲一遍 → S05（同一稿子）",
+        "完成 → S01（色块和分区牌消失）",
+        "只读（M6）时：返回 → S12"
+      ]
+    },
+    {
+      "id": "S10",
+      "name": "回看 Replay",
+      "kind": "base",
+      "reach": "S09「回看」",
+      "panel": "replay 页",
+      "scene": "光锥按记录移动，扫到的座位亮起；投影幕跟着换页",
+      "qaCapture": "debug fakeSession 后点回看，播放 2 s 截",
+      "exits": [
+        "回到报告 → S09（进入前若是只读则仍只读）",
+        "播完 → 停在末尾（仍是 S10，▶ 变「重播」）",
+        "切到后台 → 停在当前位置"
+      ]
+    },
+    {
+      "id": "S11",
+      "name": "设置 Settings",
+      "kind": "base",
+      "reach": "S01 ⚙",
+      "panel": "settings 页",
+      "qaCapture": "debug state S11 后截",
+      "exits": [
+        "返回 → S01",
+        "重新站位 → S00",
+        "清空所有记录 → S14"
+      ]
+    },
+    {
+      "id": "S12",
+      "name": "历史 History",
+      "kind": "base",
+      "reach": "S01 ⟲（有记录才可点）",
+      "panel": "history 页",
+      "qaCapture": "debug fakeSession ×3 后截",
+      "exits": [
+        "点一条 → S09+M6",
+        "返回 → S01"
+      ]
+    },
+    {
+      "id": "S13",
+      "name": "麦克风说明 Mic Ask",
+      "kind": "base",
+      "reach": "S01 第一次打开麦克风开关",
+      "panel": "micAsk 页",
+      "qaCapture": "清数据后打开开关截",
+      "exits": [
+        "允许 → 系统授权弹窗 → S01（开关按结果）",
+        "不用麦克风 → S01（开关关）"
+      ]
+    },
+    {
+      "id": "S14",
+      "name": "删除确认 Confirm",
+      "kind": "base",
+      "reach": "S02 ⋯ 删除；S11 清空所有记录",
+      "panel": "confirm 页",
+      "qaCapture": "S02 ⋯ 删除后截",
+      "exits": [
+        "删除 → 回到进入前的页（S02 / S11）",
+        "取消 → 回到进入前的页"
+      ]
+    },
+    {
+      "id": "S15",
+      "name": "太短 Too Short",
+      "kind": "base",
+      "reach": "S08 确认结束，但讲中累计 < 15 s",
+      "panel": "tooShort 页",
+      "qaCapture": "开始后 5 s 结束并确认，截",
+      "exits": [
+        "再来一次 → S05",
+        "返回 → S01"
+      ]
+    },
+    {
+      "id": "M1",
+      "name": "麦克风关 Mic Off",
+      "kind": "modifier",
+      "on": "开关关 / 未授权 / 无信号",
+      "effect": "S06 无音量点；S09·声音 显示降级文案"
+    },
+    {
+      "id": "M2",
+      "name": "快到时 Near Time",
+      "kind": "modifier",
+      "on": "S06 总时长 ≥ 目标的 90%",
+      "effect": "总计时变琥珀色，前面加 ◐"
+    },
+    {
+      "id": "M3",
+      "name": "超时 Over Time",
+      "kind": "modifier",
+      "on": "S06 总时长 > 目标",
+      "effect": "总计时变「+0:42」琥珀加粗，前面加 ▲；不弹窗、不响"
+    },
+    {
+      "id": "M4",
+      "name": "有区走神 Drifting",
+      "kind": "modifier",
+      "on": "S06 讲中 60 s 后，某列（左 / 中 / 右）连续 60 s 没被看（设置开）",
+      "effect": "该列中、后排观众低头；同一时刻最多 1 列；面板不显示任何字"
+    },
+    {
+      "id": "M5",
+      "name": "首次提示 First Run",
+      "kind": "modifier",
+      "on": "第一次进 S01 与第一次进 S06",
+      "effect": "S01：讲台面板顶部一条提示行「照常看观众讲，讲完告诉你哪片没看」；S06：前 5 s 一条「讲完按 结束」。点 × 或 8 s 后消失，只出现一次（面板内提示行，不用 Coachmark：Stage 里只查到 CoachmarkButton，R1）"
+    },
+    {
+      "id": "M6",
+      "name": "只读 Read-only",
+      "kind": "modifier",
+      "on": "从 S12 历史打开的报告 / 回看",
+      "effect": "S09 底部只有「回看」「返回」；不显示「比上次」"
+    },
+    {
+      "id": "M7",
+      "name": "不用幻灯片 No Slides",
+      "kind": "modifier",
+      "on": "选了「不用幻灯片，直接讲」",
+      "effect": "S06 只有大号计时 + ⏸ + 结束；投影幕显示礼堂名牌「演讲排练厅」；S09·时间 只有总时长；S10 无缩略"
+    },
+    {
+      "id": "M8",
+      "name": "上次中断 Interrupted",
+      "kind": "modifier",
+      "on": "上次在 S06 / S07 / S08 时进程被杀",
+      "effect": "S01 顶部提示行「上次排练中断了，没有保存」，点 × 或 8 s 后消失；只出现一次"
+    }
+  ],
+  "stateModel": {
+    "rule": "基态（同一时刻一个，决定讲台面板显示哪一页）+ 修饰位（可叠加，只改外观）。QA 截图名 = 基态 [·子页] + 修饰，例「S06+M3」「S09·声音+M1」「S09·目光+M6」「S06+M7」。",
+    "returnTo": "S02 / S11 / S12 / S13 返回都回 S01；S14 回进入前的页；S08「继续讲」回进入前的 S06 或 S07；S09+M6「返回」回 S12；S10「回到报告」保持只读与否",
+    "background": "切后台：S05→S01；S06→S07；S08 保持；S10 停；S03 继续；其余不变。进程被杀：回 S01 + M8，本次不存；导入途中被杀，下次启动清掉半截的 decks/<id>"
+  },
+  "exitTable": [
+    [
+      "S00",
+      "S01"
+    ],
+    [
+      "S01",
+      "S02 S05 S11 S12 S13"
+    ],
+    [
+      "S02",
+      "S01 S03 S14"
+    ],
+    [
+      "S03",
+      "S02 S04"
+    ],
+    [
+      "S04",
+      "S02 / 经选择器到 S03"
+    ],
+    [
+      "S05",
+      "S06 S01"
+    ],
+    [
+      "S06",
+      "S06 S07 S08"
+    ],
+    [
+      "S07",
+      "S06 S07(重新站位) S08"
+    ],
+    [
+      "S08",
+      "S09 S15 / 回前一基态"
+    ],
+    [
+      "S09",
+      "S10 S05 S01；+M6 时 S10 S12"
+    ],
+    [
+      "S10",
+      "S09（保持 M6）"
+    ],
+    [
+      "S11",
+      "S01 S00 S14"
+    ],
+    [
+      "S12",
+      "S09+M6 S01"
+    ],
+    [
+      "S13",
+      "S01"
+    ],
+    [
+      "S14",
+      "回前一基态"
+    ],
+    [
+      "S15",
+      "S05 S01"
+    ]
+  ],
+  "interactions": [
+    {
+      "id": "T1",
+      "name": "开始排练",
+      "from": "S01",
+      "to": "S05",
+      "trigger": "捏「开始排练」",
+      "confirm": false,
+      "verify": "模拟器可验证（gaze+pinch 注入）"
+    },
+    {
+      "id": "T2",
+      "name": "选稿 / 不用幻灯片",
+      "from": "S02",
+      "to": "S01",
+      "trigger": "捏列表一行",
+      "confirm": false,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T3",
+      "name": "导入 PDF / 图片",
+      "from": "S02",
+      "to": "S03→S02|S04",
+      "trigger": "「导入 PDF 或图片…」→ 系统文件选择器",
+      "confirm": false,
+      "verify": "模拟器部分可验证：adb push PDF 到 Download 后用选择器；选择器在 Stage 里能否打开见 N4；debug importPath 广播可绕过选择器"
+    },
+    {
+      "id": "T4",
+      "name": "导入备注 TXT",
+      "from": "S02",
+      "to": "S02",
+      "trigger": "⋯ → 导入备注",
+      "confirm": false,
+      "verify": "同 T3"
+    },
+    {
+      "id": "T5",
+      "name": "删除稿子 / 清空记录",
+      "from": "S02|S11",
+      "to": "S14",
+      "trigger": "⋯ 删除 / 清空所有记录",
+      "confirm": true,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T7",
+      "name": "调目标时长",
+      "from": "S01",
+      "to": "S01",
+      "trigger": "stepper − / +",
+      "confirm": false,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T8",
+      "name": "翻页",
+      "from": "S06",
+      "to": "S06",
+      "trigger": "「‹ 上一页」「下一页 ›」；手柄模式下射线不在面板上时右扳机 = 下一页、左扳机 = 上一页",
+      "confirm": false,
+      "verify": "按钮模拟器可验证；扳机翻页模拟器手柄模式可验证"
+    },
+    {
+      "id": "T9",
+      "name": "暂停 / 继续",
+      "from": "S06|S07",
+      "to": "S07|S06",
+      "trigger": "⏸ / 继续；应用失焦自动暂停",
+      "confirm": false,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T10",
+      "name": "结束",
+      "from": "S06|S07",
+      "to": "S08→S09|S15",
+      "trigger": "「结束」→「结束，看报告」",
+      "confirm": true,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T11",
+      "name": "注视统计",
+      "from": "S06",
+      "to": "S06",
+      "trigger": "GazeSystem 每帧按头朝向记秒",
+      "confirm": false,
+      "verify": "模拟器可验证（PostMessage 注入相机转向 / debug setHead yaw pitch；N2 确认模拟器相机驱动 HMDTrackingProvider）；真实头动手感真机依赖"
+    },
+    {
+      "id": "T12",
+      "name": "观众走神 / 抬头",
+      "from": "S06",
+      "to": "S06(+M4)",
+      "trigger": "讲中 60 s 后，某列 60 s 没被看 → 中后排低头（最多 1 列）；看该列 0.5 s → 抬头",
+      "confirm": false,
+      "verify": "模拟器可验证（debug driftAfter 5 把 60 s 都缩成 5 s）"
+    },
+    {
+      "id": "T13",
+      "name": "看报告分页",
+      "from": "S09",
+      "to": "S09",
+      "trigger": "分段「目光 | 时间 | 声音」",
+      "confirm": false,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T14",
+      "name": "回看",
+      "from": "S09",
+      "to": "S10",
+      "trigger": "「回看」→ 4× 自动播；▶ / ⏸；播完「重播」",
+      "confirm": false,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T15",
+      "name": "再讲一遍",
+      "from": "S09",
+      "to": "S05",
+      "trigger": "「再讲一遍」",
+      "confirm": false,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T16",
+      "name": "麦克风开关与授权",
+      "from": "S01",
+      "to": "S13→S01",
+      "trigger": "开关；首次先 S13 说明，再系统弹窗",
+      "confirm": false,
+      "verify": "开关与降级文案模拟器可验证；系统弹窗在 Stage 里能否显示见 N3；真实收音与阈值真机依赖（debug fakeVoice 注入包络）"
+    },
+    {
+      "id": "T17",
+      "name": "重新站位",
+      "from": "S11|S07",
+      "to": "S00→S01 | S07",
+      "trigger": "设置「重新站位」或暂停页「重新站位」（系统回中事件未查到 API，按收不到做，R1）",
+      "confirm": false,
+      "verify": "模拟器可验证（移相机后点按钮，讲台回到正前方）"
+    },
+    {
+      "id": "T18",
+      "name": "看历史",
+      "from": "S01",
+      "to": "S12→S09",
+      "trigger": "⟲ → 点一条",
+      "confirm": false,
+      "verify": "模拟器可验证"
+    },
+    {
+      "id": "T19",
+      "name": "切语言",
+      "from": "S11",
+      "to": "S11",
+      "trigger": "语言分段，所有面板与分区牌即时换",
+      "confirm": false,
+      "verify": "模拟器可验证"
+    }
+  ],
+  "acceptance": {
+    "lockedByCritic": [
+      "容器 STAGE_FULL（Full Space 礼堂），默认 Stage 直接打开；控制面板只有讲台一块",
+      "注视统计在 ECS 里直接读 HMDTrackingProvider，不经过 Compose 状态",
+      "没有麦克风（关 / 拒绝 / 无信号）时其他所有功能完整可用，报告只在「声音」栏说明"
+    ],
+    "mustPass": [
+      "首次打开 5 s 内能按「开始排练」（示例稿已选好，不需要导入任何东西）",
+      "debug setHead 0 0 讲 60 s：只有「正中」为 ●，其余 8 区 ◯；结论句提到最少的两区",
+      "debug setHead 0 -10 讲 30 s → 只有「中前」●；setHead 0 6 讲 30 s → 只有「中后」●；9 区秒数之和 = 看观众总秒数（±0.2 s）",
+      "debug setHead 依次朝 9 个分区中心（俯仰按该区头点算）各 5 s：9 区全部非 ◯；结论句为「全场都照顾到了」或只提最弱区",
+      "低头看讲台 20 s：classTotals.lectern ≈ 20 s（±1 s）；转身朝后 10 s：back ≈ 10 s；全程看讲台 → 结论「这次几乎没看观众…」",
+      "走神：driftAfter 5 时，讲 5 s 后不看左列 5 s，左列中后排低头；看回去 0.5 s 后 3 s 内抬头；同时最多 1 列低头",
+      "翻页：投影幕与讲台缩略同时换页；pageTimes 每页误差 ≤ 0.2 s",
+      "超时：目标 1 分钟，讲到 0:54 出现 M2，1:01 出现 M3「+0:01」",
+      "暂停期间计时和注视都不增加；S06 切后台再回来是 S07；S05 切后台回来是 S01",
+      "讲 5 s 就结束 → S15，历史里没有这次",
+      "导入 24 页 PDF：S03 进度到 24/24，回到 S02 新稿在最上；加密 PDF → S04 文案正确；S04 重新选后在选择器里取消 → S02",
+      "麦克风关：S09·声音 显示降级文案；fakeVoice 注入：开口占比、最长停顿（页码）、音量与注入值一致",
+      "回看：4× 播放时投影幕按记录换页，光锥方向与记录一致；从历史进的回看「回到报告」仍是只读",
+      "比上次：同一稿子第二次排练后报告顶部出现「比上次」一行，数字与两次记录一致",
+      "不用幻灯片：S06+M7、S09·时间+M7 布局正确",
+      "中英切换后讲台面板所有页、9 块分区牌无溢出（最长「Back left · 0 s」「Middle right · 12 s」）",
+      "模拟器帧率：讲中 168 观众 + 走神时 ≥ 72 fps（真机目标 90）",
+      "全 UI 只用 SpatialUI 组件；面板根面是系统玻璃",
+      "讲台面板反复进出 S06 / S09 30 次，面板无变黑、无闪烁；场灯 15% 时面板文字对比可读（taste A4、R1-9）",
+      "S08 停留 10 s 再「继续讲」：总计时与注视都没有增加",
+      "删除一份有 3 次记录的稿子后，S12 与「比上次」里都不再出现它的记录",
+      "观众是卡通风：同排相邻两人衣色不同；168 人里至少 6 种发型都出现；眨眼、点头、低头看手机、鼓掌四种表情在对应状态截图里看得到（S06、S06+M4、S09）"
+    ]
+  },
+  "palette": {
+    "theme": "SpatialUI vibrant + 根面 Material.Regular 玻璃",
+    "colorScheme": {
+      "fillPrimary": "inherit SpatialUI Vibrant fillPrimary",
+      "fillSecondary": "inherit SpatialUI Vibrant fillSecondary",
+      "fillTertiary": "inherit SpatialUI Vibrant fillTertiary",
+      "fillLight": "inherit SpatialUI Vibrant fillLight",
+      "labelPrimary": "inherit SpatialUI Vibrant labelPrimary",
+      "labelPrimaryLight": "inherit SpatialUI Vibrant labelPrimaryLight",
+      "labelSecondary": "inherit SpatialUI Vibrant labelSecondary",
+      "labelTertiary": "inherit SpatialUI Vibrant labelTertiary",
+      "labelQuaternary": "inherit SpatialUI Vibrant labelQuaternary",
+      "lightenHover": "inherit SpatialUI Vibrant lightenHover",
+      "lightenPressed": "inherit SpatialUI Vibrant lightenPressed",
+      "dividerLine": "inherit SpatialUI Vibrant dividerLine",
+      "interaction": "#F2A64A",
+      "passable": "#8FD4A8",
+      "alert": "#F2A64A",
+      "error": "#F07167"
+    },
+    "brandTokens": {
+      "spotAmber": "#F2A64A（舞台聚光、主按钮、热座位）",
+      "velvetSeat": "#8E2433（剧院椅绒布）",
+      "stageWood": "#6B4A32（舞台与讲台）",
+      "houseDark": "#16121A（讲中场灯 15% 时的大厅底色）",
+      "seatCold": "#5B6B82（没被看过的座位色块）",
+      "seatScale": [
+        "#5B6B82",
+        "#8A8476",
+        "#C29A62",
+        "#E3A24E",
+        "#FFC46B"
+      ],
+      "beam": "rgba(255,227,176,0.18)",
+      "exitGreen": "#2FBF71（安全出口灯，只在场景里）",
+      "audienceSkin": "#F6D3B8 #EDBB99 #D49A72 #A86B4A #7A4A33",
+      "audienceHair": "#2B2220 #4A3226 #8A5A3B #C98B4E #E8C27A #8C8C96",
+      "audienceClothes": "#4F7CAC #6BA292 #E9B44C #F3E9DC #7D6B91 #3E5C76 #D9A27E #9DB4C0"
+    },
+    "statusNotByColorOnly": "分区冷 / 一般 / 热 = ◯ / ◐ / ●；超时 = ▲ + 「+0:42」文字；快到时 = ◐"
+  },
+  "typography": {
+    "font": "Noto Sans + Noto Sans SC（应用内打包）；计时用 Noto Sans 等宽数字（tnum）",
+    "roles": {
+      "displayLarge": "48/56 SemiBold tnum：讲中总计时、倒数数字",
+      "titleLarge": "22/28 SemiBold：报告结论句、页面标题",
+      "titleMedium": "18/24 Medium：备注正文（讲台上 0.6 m 处约 1.0°）",
+      "bodyMedium": "15/20 Medium：列表行、说明",
+      "labelMedium": "13/16 SemiBold：页码、分区牌小字、芯片"
+    },
+    "rule": "中文 ≤ 17 sp 一律 Medium；分区牌在 6–12 m 处按距离放大物理尺寸，字高 ≥ 0.9°"
+  },
+  "spatialUiMap": {
+    "titleBars": "sui-title-bar（每页一条，返回 / 关闭在 leading，⚙ ⟲ 在 trailing）",
+    "deckCard": "sui-list-item（leading 缩略图，trailing sui-button style=text「换一份」）",
+    "targetStepper": "sui-stepper（分钟 1–60）",
+    "micRow": "sui-list-item + sui-switch",
+    "primary": "sui-button size=large container=interaction（开始排练 / 结束，看报告 / 再讲一遍）",
+    "secondary": "sui-button style=text 或 secondary",
+    "deckList": "sui-list-item ×N + 尾部 sui-icon-button ⋯ → sui-menu（导入备注 / 删除）",
+    "importProgress": "sui-linear-progress",
+    "pageNav": "sui-button size=large ×2（上一页 / 下一页）+ sui-icon-button ⏸ + sui-button style=secondary 结束",
+    "micDot": "sui-dot-badge（有声音时亮）",
+    "reportTabs": "sui-segment-control（目光 | 时间 | 声音）",
+    "settingsSwitches": "sui-list-item + sui-switch",
+    "languageSeg": "sui-segment-control",
+    "custom": [
+      {
+        "what": "3×3 分区方格图",
+        "why": "领域专用数据图，SpatialUI 没有对应组件"
+      },
+      {
+        "what": "每页时长横条",
+        "why": "数据图"
+      },
+      {
+        "what": "幻灯片缩略",
+        "why": "图片内容"
+      },
+      {
+        "what": "大号计时读数",
+        "why": "sui-text displayLarge 即可，不是自定义控件"
+      }
+    ],
+    "tips": "面板内顶部一条提示行（sui-text + sui-icon-button ×）；不用 SnackbarHost（Stage 内不可用）、不用 Coachmark（Stage 内只查到 CoachmarkButton）",
+    "replayControls": "sui-linear-progress + sui-icon-button ▶/⏸"
+  },
+  "appIcon": {
+    "glyph": "一束舞台聚光：上窄下宽的梯形光束，从顶边落到底部一个小讲台（实心矩形）上。纯平面、两个形状、无描边、无渐变",
+    "glyphColor": "#FFE7C2（暖奶油）",
+    "background": "#8E2433（剧院椅绒布红，本应用独有）",
+    "note": "与已登记的应用区分：星空穹顶（深蓝）、透写台、记忆宫殿等未用此红；若影院规划站也选红色，以本应用的绒布红 + 聚光光束为准，对方换色（已写进共享笔记 icon-registry.md）"
+  },
+  "tags": {
+    "contentType": "应用",
+    "contentTags": [
+      "演讲",
+      "公开表达",
+      "练习",
+      "职场",
+      "学习",
+      "卡通"
+    ],
+    "featureTags": [
+      "Stage·Full 沉浸礼堂",
+      "头向注视热力图",
+      "ECS 观众注视与走神",
+      "讲台附着面板",
+      "PDF / 图片幻灯片导入",
+      "本机音量与停顿（可无麦）",
+      "回看",
+      "比上次",
+      "全离线",
+      "中英双语"
+    ]
+  },
+  "i18n": {
+    "languages": [
+      "zh-CN",
+      "en"
+    ],
+    "default": "跟随系统",
+    "note": "UI、示例稿、分区牌、结论句模板全部双语；结论句按模板拼，不做自由生成"
+  },
+  "offline": {
+    "network": "无网络权限",
+    "apiKeys": "无",
+    "permissions": "RECORD_AUDIO（可选，可拒绝）",
+    "chinaAvailability": "全部可用"
+  },
+  "verification": {
+    "emulatorCanVerify": [
+      "S00–S15 全部状态截图",
+      "注视统计（转相机 / debug setHead）",
+      "看讲台 / 背对观众分类",
+      "走神与抬头（driftAfter 缩短）",
+      "翻页与投影幕同步、按页计时",
+      "超时 M2 / M3",
+      "暂停、后台恢复规则",
+      "PDF 导入与失败（adb push 到 Download + 选择器，或 debug importPath）",
+      "报告三栏、比上次、降级文案",
+      "回看光锥与换页",
+      "中英切换",
+      "帧率"
+    ],
+    "deviceOnly": [
+      "真实头动下的注视手感与 8° 判定是否合理",
+      "麦克风收音、底噪与 −38 dBFS 阈值",
+      "系统授权弹窗在 Stage 内的表现（N3）",
+      "站在台上的尺度与压迫感、后排 12 m 处观众观感",
+      "讲台面板低头阅读舒适度、暗场里玻璃面板对比"
+    ],
+    "debugHooks": "debug 构建带广播接收器：state <id>、setHead <yawDeg> <pitchDeg>、page next|prev|<n>、fakeSession <seed>、fakeVoice <speakRatio> <pauseSec> <dBFS>、mic on|off|nosignal、driftAfter <sec>、importPath <file>、target <min>、firstRun reset、killFlag（模拟被杀中断）"
+  },
+  "needsCheck": [
+    {
+      "id": "N1",
+      "what": "Stage Full 的环境光：ImageBasedLightSource.Single 用哪种贴图格式，CC0 HDRI（Poly Haven）如何转换；运行时改 StageEnvironmentLightingComponent 强度能否生效",
+      "plan": "研发站查「Welcome to PICO OS 6」Step 8 示例；改强度不生效就重设组件；格式不通就用 Spatial Editor 出 IBL 资源"
+    },
+    {
+      "id": "N2",
+      "what": "模拟器里相机移动是否驱动 HMDTrackingProvider（注视统计能否在模拟器验）",
+      "plan": "先跑一个最小 GazeSystem 打日志；不行就靠 debug setHead 覆盖头朝向"
+    },
+    {
+      "id": "N3",
+      "what": "运行时权限弹窗（RECORD_AUDIO）在默认 Full Stage 里能否显示",
+      "plan": "能 → 照常；不能 → 讲台面板提示「去系统设置给麦克风权限」，开关保持关（M1），不影响其他功能"
+    },
+    {
+      "id": "N4",
+      "what": "系统文件选择器（ACTION_OPEN_DOCUMENT）能否从 Full Stage 打开，返回后 Stage 状态是否保持",
+      "plan": "不能 → 门 B 决定是否加「局域网网页上传」（默认不加；示例稿 + 不用幻灯片保证可用）"
+    },
+    {
+      "id": "N5",
+      "what": "MeshInstancesResource.update(id, transform, customData) 每帧更新 ≈28 个实例的性能（API 已查到存在）",
+      "plan": "帧率不够 → 改成 168 个头实体，仍分 6 批更新"
+    },
+    {
+      "id": "N6",
+      "what": "倾斜 30° 的讲台 AttachmentPanel 能否正常交互",
+      "plan": "不行 → 面板竖直放在讲台上方（仍在低头约 40° 处）"
+    },
+    {
+      "id": "N7",
+      "what": "（v1.1）交谈声与掌声：CC0 来源与 Stage 内音频组件",
+      "plan": "v1 不做"
+    },
+    {
+      "id": "N8",
+      "what": "系统回中（recenter）事件：pico-dev-knowledge 没查到对应 API（R1）",
+      "plan": "按收不到做：只靠设置 / 暂停页的「重新站位」"
+    },
+    {
+      "id": "N9",
+      "what": "PdfRenderer 在 PICO OS 6 上的可用性与 60 页渲染耗时",
+      "plan": "Android 标准 API，预计可用；耗时 > 20 s 就改成边渲染边可用"
+    },
+    {
+      "id": "N10",
+      "what": "场灯 15% 的暗场里，Regular 玻璃讲台面板的对比是否够",
+      "plan": "不够 → 面板内层加 fillPrimary 底；30 次进出自测"
+    },
+    {
+      "id": "N11",
+      "what": "toon ShaderGraph 材质能否读 MeshInstancesResource 每实例 customData（颜色、表情格）",
+      "plan": "Spatial Editor 出材质后先用 10 个实例验证；不行就按颜色分组资源，表情改成 8 个面片资源间移动实例"
+    },
+    {
+      "id": "N12",
+      "what": "（可选资源）Kenney Mini Characters 是否自带坐姿、头能否干净拆出",
+      "plan": "不行就只用程序生成的圆头卡通人"
+    }
+  ],
+  "terminology": {
+    "rule": "界面只用：稿子、幻灯片、备注、排练、目标时长、看观众、看讲台、背对观众、分区（前 / 中 / 后 × 左 / 中 / 右）、回看、比上次、重新站位。不出现「热力图」「注视」「HMD」「头向」「覆盖率」",
+    "zoneNames": {
+      "zh": [
+        "左前",
+        "中前",
+        "右前",
+        "左中",
+        "正中",
+        "右中",
+        "左后",
+        "中后",
+        "右后"
+      ],
+      "en": [
+        "Front left",
+        "Front center",
+        "Front right",
+        "Middle left",
+        "Center",
+        "Middle right",
+        "Back left",
+        "Back center",
+        "Back right"
+      ]
+    }
+  },
+  "reviewNotes": [
+    "2026-10-21 评审第 1 轮（reviewer 子 agent，对照 VirtualSpeech / Orator + taste profile，pico-dev-knowledge 查证 SDK）：revise，3 P1 + 6 P2 + 3 P3，处理如下：",
+    "R1-1 P1 研发量：会议室、交谈声 / 掌声推到 v1.1（source.port.deferred，门 B 可要回）；回看改 4× 自动播 + 进度条，去掉拖动和换速。TXT 备注保留（keep 项「备注提词」，实现成本低）",
+    "R1-2 P1 状态闭合：补后台 / 被杀规则（stateModel.background）；S07 加「重新站位」；站位取 1 s 后 0.5 s 中位数；S09+M6 只读返回 S12；S04 选择器取消回 S02；新增 S15 太短（<15 s 不存）；结论补「几乎没看观众」模板；新增 M7 不用幻灯片",
+    "R1-3 P1 几何：每排抬高改 0.19 m，第 9 排头高 1.82 m；mustPass 改用 setHead 0 -8 并写明俯仰",
+    "R1-4 P2 后排太空：座数随半径增加 10→27，共 168 座（预算同步）",
+    "R1-5 P2 走神收紧：按 3 列判定、60 s 后启用、阈值 60 s、最多 1 列；判定用固定座位头点",
+    "R1-6 P2 精度：冷区阈值改 <3%；座位色块邻座平滑；结论只讲分区",
+    "R1-7 P2 文件怎么进头显：S02 加一行说明；写明 PPT 导出 PDF 不带备注",
+    "R1-8 P2 加「比上次」一行",
+    "R1-9 P2 暗场玻璃：N10 + 面板 glassFallback + 30 次进出自测",
+    "R1 SDK：N5 已查到 MeshInstancesResource.update；PBR 不读 customData → 衣色、色块按资源分组；Coachmark 只查到 CoachmarkButton → 改面板内提示行；recenter 事件未查到 → N8 按收不到做",
+    "R1-10 P3 采纳：S13 加「本应用没有网络权限」；倒数页「先别说话」。R1-12 P3 不采纳：S08 结束确认保留（误触结束会丢掉这次排练，代价大）",
+    "2026-10-21 评审第 2 轮（同一 reviewer）：revise，上轮 P1 全部闭合；新 1 P1 + 4 P2 + 4 P3，全部采纳：",
+    "R2-1 P1 前 / 中 / 后档分不开（0.19 m 抬高时第 4–9 排挤在 7° 内）：改成阶梯剧场，每排抬高 0.35 m（第 9 排头高 3.1 m，俯仰跨度 −15.8°…+7.0°）；分区秒数改为每帧只记一个区（水平角定列、俯仰中点定档），8° 锥只给座位色块；mustPass 改为 setHead 0 0 / 0 -10 / 0 6 三条。注：reviewer 建议保留 0.19 m 只改判定，本站认为 0.19 m 下后档只有约 2.5°，真人头动分不开，所以同时加陡阶梯",
+    "R2-2 P2 站位规则统一为「等 1 s 取 0.5 s 中位数」",
+    "R2-3 P2 采样按礼堂局部坐标存",
+    "R2-4 P2 S08 期间计时与统计都停，切后台保持 S08",
+    "R2-5 P2 「看过的区」= 非 ◯ 区",
+    "R2-6/7/8/9 P3：S00 用 state S00 保持截图；新增 M8 上次中断（S01+M8，killFlag 触发）；删稿子连带删记录、导入中被杀清半截目录；方案 B 文案 11 米改 12 米",
+    "2026-10-21 画样稿时修订：讲者站位 P 改为舞台左右居中（原写偏左 1.2 m，与「以 P 为圆心的扇形观众席」不一致），投影幕在 P 正后方 3.4 m；PRD 已同步",
+    "2026-10-21 门 B 第 1 次「改」（用户在面板按 [改…]：have better aesthetics for audience, can use cartoon style）：观众改圆头卡通人 + 表情与小动作，礼堂同步改平涂卡通风，材质改 toon，资源可选 Kenney Mini Characters（CC0）；容器、骨架、状态模型、统计规则都不变。变化处见 changes[] C1–C5"
+  ],
+  "pipelineNote": "门 B 后研发站第 0 步先做最小验证：默认 Full Stage + IBL 不黑（N1）、模拟器相机能否驱动头朝向（N2）、文件选择器（N4）——三项结果写进 deviations 再继续",
+  "changes": [
+    {
+      "id": "C1",
+      "where": "spatialLayout.audience.figure + audienceStyle（新）",
+      "what": "观众从「写实比例陶土白模」改成圆头卡通人：头身比约 1:1.8、简单五官（豆豆眼 + 眉 + 小嘴 + 腮红）、6 种发型、5 种肤色、8 种衣服颜色、20% 戴眼镜；全部程序生成",
+      "why": "门 B 用户原话：have better aesthetics for audience, can use cartoon style"
+    },
+    {
+      "id": "C2",
+      "where": "audienceStyle.behaviors",
+      "what": "观众有表情和小动作：眨眼、呼吸起伏、偶尔歪头；被你看着 ≥1.5 s 的那片有 2–3 人点头微笑；走神 = 低头看发光的手机；报告时鼓掌（只有动作，没有声音）",
+      "why": "卡通风格需要「活」起来才好看；点头是正反馈，不打断讲话"
+    },
+    {
+      "id": "C3",
+      "where": "spatialLayout.hall.style",
+      "what": "礼堂同步改成平涂暖色卡通风（圆角台阶、绒布红椅背、暖木舞台、柔和顶灯条），和观众统一",
+      "why": "写实礼堂配卡通观众会割裂"
+    },
+    {
+      "id": "C4",
+      "where": "entities3d / budget / needsCheck N11–N12",
+      "what": "材质改为一个 toon（卡通平涂）ShaderGraph 材质，用每实例 customData 上色；不行就按颜色分组 MeshInstancesResource。可选资源：Kenney Mini Characters（CC0）",
+      "why": "保持资产轻、可程序生成，授权清楚"
+    },
+    {
+      "id": "C5",
+      "where": "palette.brandTokens",
+      "what": "新增观众配色：肤色 5、发色 6、衣服 8（避开座椅红）",
+      "why": "同上"
+    }
+  ],
+  "audienceStyle": {
+    "direction": "圆润、友善、像动画短片里的观众席：低饱和但温暖的配色，平涂 + 一层柔和明暗（toon 两阶），没有写实皮肤和布料细节。不做恐怖谷式的写实人脸",
+    "proportions": "头半径 0.17 m；躯干宽 0.42 m、高 0.40 m（坐姿露出部分）；手臂圆柱半径 0.05 m；整人坐高约 1.15 m（与原写实白模头高一致，阶梯与注视判定不变）",
+    "parts": [
+      "头：低模球（约 120 三角形）",
+      "发型 6 种：短发帽、齐耳波波头、丸子头、马尾、卷发团（几个小球）、毛线帽；每种 ≤ 150 三角形",
+      "躯干：圆角梯形（约 200 三角形），领口一道浅色 V",
+      "手臂：两段圆柱 + 球手（约 120 三角形），平时放膝上；鼓掌时抬到胸前",
+      "眼镜：两个细圆环 + 横梁（20% 的人有）",
+      "脸：一张 256×256 表情图集（8 格：平视、微笑、眨眼、点头笑、低头看手机、鼓掌大笑、惊讶、无聊），贴在头前方的小平面上"
+    ],
+    "palette": {
+      "skin": [
+        "#F6D3B8",
+        "#EDBB99",
+        "#D49A72",
+        "#A86B4A",
+        "#7A4A33"
+      ],
+      "hair": [
+        "#2B2220",
+        "#4A3226",
+        "#8A5A3B",
+        "#C98B4E",
+        "#E8C27A",
+        "#8C8C96"
+      ],
+      "clothes": [
+        "#4F7CAC",
+        "#6BA292",
+        "#E9B44C",
+        "#F3E9DC",
+        "#7D6B91",
+        "#3E5C76",
+        "#D9A27E",
+        "#9DB4C0"
+      ],
+      "rule": "衣服不用红色系（和绒布红椅背区分）；同一排相邻两人衣色不同"
+    },
+    "behaviors": [
+      "眨眼：每人每 3–6 s 一次（换表情格 0.12 s）",
+      "呼吸：躯干缩放 ±1%，周期 4 s，每人相位不同",
+      "看你：头按 HeadLookSystem 转向讲者（不变）；每人每 8–20 s 歪头或看一眼投影幕",
+      "被看到：讲者看向某区累计 1.5 s，该区随机 2–3 人点头 + 微笑 1 s（同一人 20 s 内不重复）",
+      "走神：低头 35° + 表情「低头看手机」+ 手里亮一块小手机",
+      "报告：场灯升起后全场鼓掌 3 s（手臂动作 + 表情「鼓掌大笑」），然后回到微笑"
+    ],
+    "material": "一个 toon 材质（ShaderGraph：两阶明暗 + 轮廓光，Spatial Editor 出），颜色从每实例 customData 读——SDK 查证过 customFloatData 只有 ShaderGraph 材质读得到（N11）。不行就退回 PBR（粗糙度 0.9、无高光）并按颜色分组 MeshInstancesResource",
+    "assets": {
+      "primary": "全部代码生成（基本形状 + 一张程序画的表情图集 PNG，研发站用脚本出图并提交到 assets/），无外部授权问题",
+      "optional": "Kenney Mini Characters（kenney.nl/assets/mini-characters，CC0 公有领域，2024，带动画，人物与无障碍主题）。若研发站认为它更好看：用 Blender 脚本把模型烘成坐姿静态网格并拆出头部（CC0 允许修改），出处写进 assets/SOURCES.md。坐姿动画是否自带未确认（N12）",
+      "notUsed": "Quaternius 角色包：官网现改用 Quaternius Asset Licence（QAL），条款未核实，不用"
+    }
+  }
+}

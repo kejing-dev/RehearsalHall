@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- theatre-seat velvet red (剧院椅绒布红): the app's own icon colour in the launcher; no other factory app uses it
+         (registry: side-session-notes icon-registry.md) -->
+    <color name="ic_launcher_background">#FF8E2433</color>
+</resources>
