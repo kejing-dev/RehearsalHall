@@ -105,7 +105,23 @@ internal class HallMaterials(private val shared: SharedResources) {
                 setCullingMode(MaterialCullingMode.NONE)
             }
         )
+    /** A listener inside the gaze cone: the house palette, a little brighter (tint follows the house lights). */
+    val houseLit: UnlitMaterial = toon()
+
+    /** The soft pool of light where the gaze lands: a radial fade, warm cream. */
+    val pool: UnlitMaterial =
+        shared.keep(
+            UnlitMaterial.create(BlendingMode.TRANSPARENT).apply {
+                setBaseColor(HallColors.Beam.color4())
+                setBaseColorTexture(shared.keep(TextureResource.create(flipV(radial()))))
+                setOpacity(0.4f)
+                runCatching { setApplyToneMapping(false) }
+                setCullingMode(MaterialCullingMode.NONE)
+                setDepthWrite(false)
+            }
+        )
     val beam: UnlitMaterial = sheer(HallColors.Beam, 0.18f)
+    val follow: UnlitMaterial = sheer(HallColors.Beam, 0.12f)
     val spot: UnlitMaterial = sheer(HallColors.Beam, 0.07f)
     val spotFloor: UnlitMaterial = sheer(HallColors.SpotAmber, 0.16f)
     private var screenTexture: TextureResource? = null
@@ -156,6 +172,18 @@ internal class HallMaterials(private val shared: SharedResources) {
          * The engine's texture V runs from the bottom row of the bitmap up (Sky Dome QA q1-2), so every bitmap here is
          * drawn top-down with v = 0 at the top and flipped once before upload.
          */
+        /** White disc fading to transparent towards the rim (the gaze pool). */
+        fun radial(size: Int = 128): Bitmap {
+            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val c = (size - 1) / 2f
+            for (y in 0 until size) for (x in 0 until size) {
+                val r = kotlin.math.hypot(x - c, y - c) / c
+                val a = if (r >= 1f) 0f else Math.pow((1.0 - r), 1.6).toFloat()
+                bmp.setPixel(x, y, android.graphics.Color.argb((a * 255).toInt(), 255, 255, 255))
+            }
+            return bmp
+        }
+
         fun flipV(src: Bitmap): Bitmap {
             val m = android.graphics.Matrix().apply { preScale(1f, -1f) }
             return Bitmap.createBitmap(src, 0, 0, src.width, src.height, m, false)
@@ -242,10 +270,11 @@ internal object Shapes {
     fun disc(name: String, seg: Int = 40): MeshResource {
         val b = MeshBuilder(seg + 2)
         val n = Vec3(0f, 0f, 1f)
-        val c = b.vertex(Vec3.ZERO, n)
+        // UVs map the disc onto the whole texture (the gaze pool's radial fade)
+        val c = b.vertex(Vec3.ZERO, n, Vector2(0.5f, 0.5f))
         for (i in 0..seg) {
             val a = 2 * PI * i / seg
-            b.vertex(Vec3((0.5 * cos(a)).toFloat(), (0.5 * sin(a)).toFloat(), 0f), n)
+            b.vertex(Vec3((0.5 * cos(a)).toFloat(), (0.5 * sin(a)).toFloat(), 0f), n, Vector2((0.5 + 0.5 * cos(a)).toFloat(), (0.5 - 0.5 * sin(a)).toFloat()))
         }
         for (i in 1..seg) b.tri(c, i, i + 1)
         return b.build(name)

@@ -13,6 +13,7 @@ import io.embodit.rehearsalhall.domain.Voice
 import io.embodit.rehearsalhall.domain.VoiceMath
 import io.embodit.rehearsalhall.domain.Zones
 import io.embodit.rehearsalhall.platform.HallLog
+import io.embodit.rehearsalhall.platform.EyePermissionActivity
 import io.embodit.rehearsalhall.platform.Importer
 import io.embodit.rehearsalhall.platform.Mic
 import io.embodit.rehearsalhall.platform.MicPermissionActivity
@@ -113,6 +114,7 @@ object HallController {
         reloadDecks()
         PickerActivity.onResult = { r -> onPicked(r) }
         MicPermissionActivity.onResult = { ok -> onMicPermission(ok) }
+        EyePermissionActivity.onResult = { ok -> scope.launch { HallLog.i("EYE permission result=$ok"); logState("!eye permission $ok") } }
         HallLog.i("CONTROLLER started lang=$lang interrupted=$interrupted firstRun=$firstRun")
         logState("start")
     }
@@ -210,6 +212,7 @@ object HallController {
                 update("scene ready") { it.copy(loaded = true, base = Base.S01, lights = Lights.ENTRY) }
                 if (_state.value.tip == Tip.FIRST_RUN) prefs?.edit()?.putBoolean("firstRunDone", true)?.apply()
                 scheduleTipTimeout()
+                askEyeOnce()
             } else if (s.base == Base.S07) update("!replaced in S07") { it }
             HallEvent.Start, HallEvent.Again -> startCountdown()
             HallEvent.ChangeDeck -> go(Base.S02)
@@ -232,6 +235,13 @@ object HallController {
                 update("mic declined") { it.copy(micOn = false, base = Base.S01) }
             }
             HallEvent.MicSettings -> openAppSettings()
+            HallEvent.EyeAllow -> {
+                val c = app ?: return
+                if (EyePermissionActivity.granted(c)) return
+                prefs?.edit()?.putBoolean("eyeAsked", true)?.apply()
+                // the system dialog again; if it cannot open, the app's settings page (permission toggles live there)
+                if (!EyePermissionActivity.open(c)) openAppSettings()
+            }
             is HallEvent.PickDeck -> {
                 reloadDecks(e.id)
                 go(Base.S01)
@@ -315,6 +325,23 @@ object HallController {
     }
 
     private fun go(b: Base) = update("go") { it.copy(base = b) }
+
+    /** First entry: ask for the eye-tracking permission once (the system dialog may not show over a Full Stage). */
+    private fun askEyeOnce() {
+        val c = app ?: return
+        if (EyePermissionActivity.granted(c) || prefs?.getBoolean("eyeAsked", false) == true) return
+        prefs?.edit()?.putBoolean("eyeAsked", true)?.apply()
+        val ok = EyePermissionActivity.open(c)
+        HallLog.i("EYE permission request opened=$ok")
+    }
+
+    /** Scene, on change only: which gaze source the ECS system uses now. */
+    fun onGazeSource(source: GazeSource, reason: String?) {
+        val s = _state.value
+        if (s.gazeSource == source && s.eyeReason == reason) return
+        HallLog.i("GAZE source=$source reason=$reason")
+        update("!gaze $source") { it.copy(gazeSource = source, eyeReason = reason) }
+    }
 
     private fun back() {
         val s = _state.value
@@ -783,8 +810,8 @@ object HallController {
         val r = recorder
         return String.format(
             Locale.US,
-            "DUMP state=%s deck=%s pages=%d page=%d elapsed=%.1f target=%d mic=%s/%s lights=%s eyeH=%.2f drifting=%s rec=%s",
-            designState(), s.deckId, pageCount(), s.page, s.elapsedSec, s.targetSec, s.micOn, s.micPermission, s.lights, eyeH, drifting,
+            "DUMP state=%s deck=%s pages=%d page=%d elapsed=%.1f target=%d mic=%s/%s lights=%s eyeH=%.2f gaze=%s(%s) drifting=%s rec=%s",
+            designState(), s.deckId, pageCount(), s.page, s.elapsedSec, s.targetSec, s.micOn, s.micPermission, s.lights, eyeH, s.gazeSource, s.eyeReason, drifting,
             r?.let { "zones=" + it.zone.map { z -> String.format(Locale.US, "%.1f", z) } + " classes=" + it.classTotals.map { c -> String.format(Locale.US, "%.1f", c) } + " samples=" + it.sampleCount } ?: "none",
         )
     }

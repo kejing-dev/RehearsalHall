@@ -138,6 +138,13 @@
     <string name="confirm_delete_deck">Delete this talk? Its %1$d rehearsal records will be deleted too.</string>
     <string name="confirm_clear_all">Clear all rehearsal records?</string>
 
+    <string name="gaze_eye">Gaze: eye tracking</string>
+    <string name="gaze_head">Eye tracking unavailable, using head direction</string>
+    <string name="gaze_row">Gaze source</string>
+    <string name="gaze_reason_permission">no eye-tracking permission</string>
+    <string name="gaze_reason_unsupported">not supported or not ready on this device</string>
+    <string name="eye_allow">Allow eye tracking</string>
+
     <string-array name="zone_names">
         <item>Front left</item>
         <item>Front center</item>

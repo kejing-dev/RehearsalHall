@@ -16,6 +16,7 @@ import java.io.File
  *
  *   state S01 ... S15 | state name <label> | state clear     go to a base state / name override for screenshots
  *   setHead <yaw> <pitch> | setHead off      head direction, hall-local degrees (+ right, + up); off = real head
+ *   eye off|on                                force the head-direction fallback / use the eyes when available
  *   setZone <0..8>                            setHead to the centre of a zone (pitch from its head row)
  *   page next|prev|<n>                        turn the page (n is 1-based)
  *   start | pause | resume | end | endok | keep   T1 / T9 / T10
@@ -57,6 +58,7 @@ object DebugCommands {
                 if (args.firstOrNull() == "off") scene()?.debugHead = null
                 else scene()?.debugHead = args[0].toFloat() to args[1].toFloat()
             }
+            "eye" -> scene()?.debugEye(args.firstOrNull() == "off")
             "setzone" -> {
                 val z = args[0].toInt().coerceIn(0, Zones.COUNT - 1)
                 scene()?.debugHead = Zones.centre(z, c.eyeH)

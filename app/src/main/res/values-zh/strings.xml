@@ -133,6 +133,13 @@
     <string name="confirm_delete_deck">删除这份稿子？它的 %1$d 次排练记录也会删掉。</string>
     <string name="confirm_clear_all">清空所有排练记录？</string>
 
+    <string name="gaze_eye">目光：眼动追踪</string>
+    <string name="gaze_head">眼动不可用，改用头部朝向</string>
+    <string name="gaze_row">目光来源</string>
+    <string name="gaze_reason_permission">没有眼动权限</string>
+    <string name="gaze_reason_unsupported">设备不支持或未就绪</string>
+    <string name="eye_allow">允许眼动</string>
+
     <string-array name="zone_names">
         <item>左前</item>
         <item>中前</item>

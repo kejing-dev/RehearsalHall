@@ -26,6 +26,9 @@ enum class ConfirmKind { DELETE_DECK, CLEAR_ALL }
 /** A hint line at the top of the lectern panel (design M5 / M8 / mic denied). */
 enum class Tip { FIRST_RUN, FIRST_TALK, INTERRUPTED, MIC_DENIED, IMPORT_CAPPED, PICKER_MISSING }
 
+/** Where "looking" comes from: the eyes (EyeTrackingProvider) or, when they are unavailable, the head direction. */
+enum class GazeSource { EYE, HEAD }
+
 data class Confirm(val kind: ConfirmKind, val returnTo: Base, val deckId: String? = null, val sessions: Int = 0)
 
 /** A report on the lectern: the session, the one before it (for "比上次"), read-only when opened from history (M6). */
@@ -63,6 +66,9 @@ data class HallUiState(
     val confirm: Confirm? = null,
     // scene
     val lights: Lights = Lights.ENTRY,
+    val gazeSource: GazeSource = GazeSource.HEAD,
+    /** Why the eyes are not used ("permission", "unsupported", "no-data", "off"); null while they are. */
+    val eyeReason: String? = "no-data",
     val placeEpoch: Int = 0,
     val tick: Long = 0L,
 ) {
@@ -128,6 +134,8 @@ sealed interface HallEvent {
     data object ConfirmNo : HallEvent
     data object DismissTip : HallEvent
     data object MicSettings : HallEvent
+    /** Settings: ask for the eye-tracking permission again. */
+    data object EyeAllow : HallEvent
     /** Scene: the hall has been built and placed. */
     data object SceneReady : HallEvent
     /** Lifecycle: the Stage went to / came back from the background. */

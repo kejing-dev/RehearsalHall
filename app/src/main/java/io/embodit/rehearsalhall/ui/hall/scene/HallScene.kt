@@ -28,6 +28,8 @@ import io.embodit.rehearsalhall.domain.Yaw
 import io.embodit.rehearsalhall.domain.Zones
 import io.embodit.rehearsalhall.platform.HallLog
 import io.embodit.rehearsalhall.platform.tracking.ControllerTriggers
+import io.embodit.rehearsalhall.platform.tracking.EyeTracker
+import io.embodit.rehearsalhall.ui.hall.GazeSource
 import io.embodit.rehearsalhall.platform.tracking.HeadTracker
 import io.embodit.rehearsalhall.ui.hall.Base
 import io.embodit.rehearsalhall.ui.hall.HallController
@@ -86,6 +88,9 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
     private var scope: CoroutineScope? = null
     private val head = HeadTracker()
     private val triggers = ControllerTriggers()
+    private val eyes = EyeTracker()
+    private var eyePose: HeadPose? = null
+    private var reportedSource: Pair<GazeSource, String?>? = null
     private var content: SpatialViewContent? = null
     private var stageRoot: Entity? = null
     private var hallRoot: Entity? = null
@@ -166,6 +171,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         for (i in 0 until Zones.COUNT) rig.world(PanelIds.sign(i), PanelSizes.SIGN_W, PanelSizes.SIGN_H, SIGN_K).maxPitch = 0.6f
         head.start()
         triggers.start()
+        eyes.start()
         ActiveScene.current = this
         attached = true
         bindPanels(attachments)
@@ -222,6 +228,12 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         spot = sp
         // replay beam (design replayBeam: 10° cone, 13 m)
         beam = model(shared.keep(Figures.cone(13f, 5f, Palette.LAMP).build("beam")), m.beam, "beam", hall).also { it.enabled = false }
+        pool = model(shared.keep(Shapes.disc("gazePool")), m.pool, "gazePool", hall).also {
+            it.setLocal(rotation = Quat4.axisAngle(Vec3.RIGHT, -(PI / 2).toFloat()), scale = Vec3(POOL_D, POOL_D, 1f))
+            it.enabled = false
+        }
+        // unit cone (radius 1 at length 1), scaled per frame from the rig to the gaze pool
+        follow = model(shared.keep(Figures.cone(1f, 45f, Palette.LAMP, seg = 28).build("followSpot")), m.follow, "followSpot", hall).also { it.enabled = false }
         tintMesh = shared.keep(MeshBuilder().build("tints"))
         tintEntity = model(tintMesh!!, m.glow, "tints", hall).also { it.enabled = false }
         frame()
@@ -239,7 +251,8 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
             val arms = model(armsMesh, m.house, "arms${s.index}", hall)
             val phone = model(phoneMesh, m.glow, "phone${s.index}", arms).also { it.enabled = false }
             members += Member(s, look, h, face, arms, phone)
-            if (s.index % 8 == 7) frame()
+            // one listener per step: each mesh costs about a rendered frame, and a long run starves input (ANR on a cold emulator)
+            frame()
         }
         built = true
         HallLog.i("SCENE built ms=${SystemClock.elapsedRealtime() - t0} members=${members.size} styles=${looks.map { it.style }.toSet()} armsMeshes=${armsCache.size}")
@@ -268,6 +281,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         paused = true
         head.stop()
         triggers.stop()
+        eyes.stop()
         HallLog.i("SCENE paused")
     }
 
@@ -276,6 +290,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         paused = false
         head.start()
         triggers.start()
+        eyes.start()
         lastFrameMs = 0L
         HallLog.i("SCENE resumed")
     }
@@ -300,6 +315,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         scope = null
         head.stop()
         triggers.stop()
+        eyes.stop()
         panelShown.clear()
         members.clear()
         faceMeshes.clear()
@@ -364,6 +380,8 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
             pose = it
             hasHead = it.position.length > 1e-3f
         }
+        eyePose = eyes.pose(now)
+        reportSource(now)
         val rig = rig ?: return
         rig.onFrame(now)
         rig.stowBehind(pose)
@@ -374,6 +392,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
             if (placed) {
                 stepFade(now)
                 stepGaze(state, dt, now)
+                stepGazeLight(state, dt)
                 stepAudience(state, now)
                 stepLights(state, dt)
                 stepScreen(state)
@@ -398,6 +417,26 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         val h = if (hasHead) inv.rotate(pose.position - p0) else Vec3(0f, eyeH, 0f)
         val f = inv.rotate(pose.forward).normalized()
         return h to f
+    }
+
+    /**
+     * The gaze ray in hall-local metres: the eyes (EyeTrackingProvider) when they can be used, else the head direction.
+     * Debug `setHead` overrides both. The head ([local]) still places the hall, tilts the panel and is what the
+     * audience looks at.
+     */
+    private fun gaze(): Pair<Vec3, Vec3> {
+        if (debugHead != null) return local()
+        val e = eyePose ?: return local()
+        val inv = Quat4.axisAngle(Vec3.UP, -yaw0)
+        return inv.rotate(e.position - p0) to inv.rotate(e.forward).normalized()
+    }
+
+    /** Tells the panel the real source (on change only): the eyes, or the head and why not the eyes. */
+    private fun reportSource(now: Long) {
+        val src = if (eyePose != null) GazeSource.EYE to null else GazeSource.HEAD to (eyes.unavailableReason(now) ?: "no-data")
+        if (src == reportedSource) return
+        reportedSource = src
+        HallController.onGazeSource(src.first, src.second)
     }
 
     private fun toStage(local: Vec3): Vec3 = p0 + Quat4.axisAngle(Vec3.UP, yaw0).rotate(local)
@@ -455,7 +494,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
     private fun stepGaze(state: HallUiState, dt: Float, now: Long) {
         val rec = HallController.recorder ?: return
         if (!HallController.recording || dt <= 0f) return
-        val (h, f) = local()
+        val (h, f) = gaze()
         val look = rec.step(dt, f, h, state.page)
         talkSec += dt
         val col = if (look.cls == LookClass.AUDIENCE) Zones.column(look.zone) else -1
@@ -501,6 +540,72 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
 
     private var driftStartMs = 0L
     private val rnd = Random(42)
+
+    // ---------------------------------------------------------------- gaze light (v0.1.2: where you are looking)
+
+    private var pool: ModelEntity? = null
+    private var follow: ModelEntity? = null
+    private var poolAt: Vec3? = null
+    private var poolOpacity = 0f
+    private val lit = HashSet<Int>()
+
+    /**
+     * A soft warm pool of light on the seats where the gaze ray lands, and the listeners inside a 6° cone around the
+     * ray lit a little (their head, face and arms swap to the brighter house material). Shown while getting ready and
+     * talking, not while paused or in the report (the report keeps its seat tints).
+     */
+    private fun stepGazeLight(state: HallUiState, dt: Float) {
+        val m = mats ?: return
+        val p = pool ?: return
+        val active = state.base == Base.S01 || state.base == Base.S05 || state.base == Base.S06
+        val (h, f) = gaze()
+        var target: HallLayout.Seat? = null
+        val nowLit = HashSet<Int>()
+        if (active && GazeClassifier.classify(f, h, eyeH, Zones.edges(eyeH)).cls == LookClass.AUDIENCE) {
+            var best = Float.MAX_VALUE
+            for (s in HallLayout.seats) {
+                val a = GazeClassifier.angleDeg(f, s.head - h)
+                if (a < best) {
+                    best = a
+                    target = s
+                }
+                if (a < LIT_DEG) nowLit += s.index
+            }
+            if (best > POOL_MAX_DEG) target = null
+        }
+        // fade and follow (about 8/s), never a hard jump
+        val want = if (target != null) POOL_OPACITY else 0f
+        poolOpacity += (want - poolOpacity) * (dt * 6f).coerceIn(0f, 1f)
+        if (target != null) {
+            val at = target.floor + Vec3(0f, POOL_LIFT, 0f)
+            poolAt = poolAt?.lerp(at, (dt * 8f).coerceIn(0f, 1f)) ?: at
+        }
+        p.enabled = poolOpacity > 0.01f && poolAt != null
+        if (p.enabled) {
+            p.setLocal(position = poolAt)
+            m.pool.setOpacity(poolOpacity)
+        }
+        // the follow-spot: a soft translucent beam from the rig above the stage front to the looked-at seats
+        val fs = follow
+        val at = poolAt
+        if (fs != null) {
+            fs.enabled = p.enabled
+            if (fs.enabled && at != null) {
+                val aim = at + Vec3(0f, 0.9f, 0f) - FOLLOW_APEX
+                val len = aim.length
+                val r = FOLLOW_RADIUS / len
+                fs.setLocal(position = FOLLOW_APEX, rotation = Quat4.fromTo(Vec3(0f, 0f, 1f), aim / len), scale = Vec3(r * len, r * len, len))
+                m.follow.setOpacity(poolOpacity * FOLLOW_SHARE)
+            }
+        }
+        // listeners in the cone: brighter material on head, face and arms
+        if (nowLit != lit) {
+            for (i in lit) if (i !in nowLit) members.getOrNull(i)?.let { mb -> mb.head.setMaterial(m.house); mb.face.setMaterial(m.house); mb.arms.setMaterial(m.house) }
+            for (i in nowLit) if (i !in lit) members.getOrNull(i)?.let { mb -> mb.head.setMaterial(m.houseLit); mb.face.setMaterial(m.houseLit); mb.arms.setMaterial(m.houseLit) }
+            lit.clear()
+            lit.addAll(nowLit)
+        }
+    }
 
     // ---------------------------------------------------------------- audience
 
@@ -610,6 +715,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         lightLevel += (want - lightLevel).coerceIn(-step, step)
         val m = mats ?: return
         m.tint(m.house, 0.2f + 0.8f * lightLevel)
+        m.tint(m.houseLit, (0.2f + 0.8f * lightLevel + LIT_BOOST).coerceAtMost(1.15f))
         m.tint(m.stage, 0.5f + 0.5f * lightLevel, warm = true)
         spot?.enabled = lightLevel < 0.95f
         lightsWritten = true
@@ -731,8 +837,13 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
 
     fun panelLines(): List<String> = rig?.dump() ?: emptyList()
 
+    /** Debug `eye off|on`: pretend the eyes are unavailable (head fallback) or use them when they are. */
+    fun debugEye(off: Boolean) {
+        eyes.forceOff = off
+    }
+
     fun audienceLine(): String =
-        "AUDIENCE members=${members.size} phones=${members.count { it.phone }} nodding=${members.count { SystemClock.elapsedRealtime() - it.nodStartMs < 1000 }} faces=${members.groupingBy { it.faceKind }.eachCount()} unseen=${unseen.map { String.format(Locale.US, "%.1f", it) }} drifting=${HallController.drifting}"
+        "AUDIENCE gaze=${reportedSource} lit=${lit.size} pool=${String.format(Locale.US, "%.2f", poolOpacity)}@${HallLog.pos(poolAt)} members=${members.size} phones=${members.count { it.phone }} nodding=${members.count { SystemClock.elapsedRealtime() - it.nodStartMs < 1000 }} faces=${members.groupingBy { it.faceKind }.eachCount()} unseen=${unseen.map { String.format(Locale.US, "%.1f", it) }} drifting=${HallController.drifting}"
 
     // ---------------------------------------------------------------- the listeners
 
@@ -802,6 +913,15 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         const val CLAP_MS = 3_000L
         const val BLINK_MS = 160L
         const val TRIGGER_SETTLE_MS = 250L
+        const val LIT_DEG = 6f
+        val FOLLOW_APEX = Vec3(0f, 6.9f, HallLayout.STAGE_FRONT_Z - 0.3f)
+        const val FOLLOW_RADIUS = 1.0f
+        const val FOLLOW_SHARE = 0.15f
+        const val LIT_BOOST = 0.32f
+        const val POOL_MAX_DEG = 12f
+        const val POOL_OPACITY = 0.42f
+        const val POOL_D = 2.2f
+        const val POOL_LIFT = 0.03f
         const val PANEL_MIN_TILT = 0.349f // 20°
         const val PANEL_MAX_TILT = 1.222f // 70°
         val SCREEN = Vec3(0f, HallLayout.SCREEN_BOTTOM + HallLayout.SCREEN_H / 2, HallLayout.SCREEN_Z)

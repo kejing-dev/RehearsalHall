@@ -24,9 +24,6 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 STRING_FILES = [
     os.path.join(ROOT, "app", "src", "main", "res", "values", "strings.xml"),
     os.path.join(ROOT, "app", "src", "main", "res", "values-zh", "strings.xml"),
-    # the sky data: 88 constellation names and notes, star names, city names
-    os.path.join(ROOT, "app", "src", "main", "assets", "sky", "constellations.tsv"),
-    os.path.join(ROOT, "app", "src", "main", "assets", "sky", "cities.tsv"),
 ]
 # CJK punctuation and the symbols the UI draws next to readings (grade glyphs, warnings, arrows).
 EXTRA = (

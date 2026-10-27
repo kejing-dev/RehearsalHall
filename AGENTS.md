@@ -58,6 +58,20 @@ state, design lockedByCritic). Talk time uses the wall clock (pauses / S08 stop 
 - AlertDialog / popup menus do not work in a Stage: the deck "⋯" actions open inline under the row.
 - Text on a bitmap texture: V runs from the bottom row, every bitmap is flipped once before upload.
 
+## Gaze source and gaze light (v0.1.2)
+
+- Gaze = `EyeTrackingProvider` (platform/tracking/EyeTracker.kt; Full Space only, runtime permission
+  `com.picovr.permission.EYE_TRACKING`, requested once on first entry through EyePermissionActivity, again from
+  Settings). Pose in global space = stage-root space, gaze along local -Z (SDK sample). When `supportState` is not
+  SUPPORTED or samples are stale (> 1 s) the ECS system uses the head direction and `HallController.onGazeSource`
+  tells the panel ("眼动不可用，改用头部朝向" on S01 / S06, reason in Settings). The head still places the hall, tilts
+  the lectern panel and is what the listeners look at. On the emulator the provider stays `WITHOUT_PERMISSION`.
+- Gaze light (`HallScene.stepGazeLight`, S01 / S05 / S06): a warm radial pool on the seat nearest the gaze ray (≤ 12°),
+  a translucent follow-spot cone from above the stage front to it (≈ 6 % opacity), and the listeners within 6° swapped
+  to the brighter `houseLit` material. The report's seat tints are unchanged.
+- The scene builds one listener per step (yield after each head mesh): batches of 8 starved input on a cold emulator
+  (ANR "Waited 5000ms for FocusEvent"). Headset build time: 6.8 s.
+
 ## UI rules
 
 - All 2D UI is SpatialUI inside `PicoTheme`. No Material / Material3 (gate: `../spatial-app-factory/bin/material-grep.txt`).
@@ -85,6 +99,7 @@ or `tools/dev.sh cmd NAME 'ARGS'`. Each answers `CMD NAME -> result` (tag `Rehea
 |---|---|
 | `state S00` … `state S15` | go to a base state (S06/S07/S08 start a talk without the countdown; S09 opens a fake report; S12 makes 3 fake sessions if none) |
 | `state name LABEL` / `state clear` | name override for screenshots |
+| `eye off|on` | force the head-direction fallback / use the eyes when available |
 | `setHead YAW PITCH` / `setHead off` / `setZone 0..8` | head direction, hall-local degrees (+ right, + up) / real head / a zone's centre |
 | `page next|prev|N` | turn the page (N 1-based) |
 | `start` `pause` `resume` `end` `endok` `keep` | T1, T9, T10 |

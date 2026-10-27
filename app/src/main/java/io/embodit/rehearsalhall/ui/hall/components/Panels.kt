@@ -65,6 +65,7 @@ import io.embodit.rehearsalhall.domain.Voice
 import io.embodit.rehearsalhall.domain.ZoneLevel
 import io.embodit.rehearsalhall.ui.hall.Base
 import io.embodit.rehearsalhall.ui.hall.ConfirmKind
+import io.embodit.rehearsalhall.ui.hall.GazeSource
 import io.embodit.rehearsalhall.ui.hall.HallController
 import io.embodit.rehearsalhall.ui.hall.HallEvent
 import io.embodit.rehearsalhall.ui.hall.HallUiState
@@ -283,8 +284,22 @@ private fun androidx.compose.foundation.layout.ColumnScope.Setup(state: HallUiSt
     Spacer(Modifier.weight(1f))
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         val last = state.lastSummary
-        Body(if (last != null) lastLine(r, last) else "", secondary = true, modifier = Modifier.weight(1f), lines = 1)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            GazeLine(state)
+            Body(if (last != null) lastLine(r, last) else "", secondary = true, lines = 1)
+        }
         Primary(rs(R.string.start), "setup_start") { onEvent(HallEvent.Start) }
+    }
+}
+
+/** Where "looking" comes from now: the eyes, or the head direction with the reason (design change v0.1.2). */
+@Composable
+private fun GazeLine(state: HallUiState) {
+    val eye = state.gazeSource == GazeSource.EYE
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.probe("gaze_line")) {
+        Box(Modifier.size(9.dp).clip(CircleShape).background(if (eye) PicoTheme.colorScheme.passable else PicoTheme.colorScheme.alert))
+        Spacer(Modifier.width(8.dp))
+        Text(text = rs(if (eye) R.string.gaze_eye else R.string.gaze_head), style = HallType.label, color = if (eye) PicoTheme.colorScheme.labelSecondary else PicoTheme.colorScheme.alert, maxLines = 1)
     }
 }
 
@@ -420,6 +435,10 @@ private fun androidx.compose.foundation.layout.ColumnScope.Speaking(state: HallU
         }
         if (!state.noSlides) TotalClock(state, big = false)
         Spacer(Modifier.weight(1f))
+        if (state.gazeSource == GazeSource.HEAD) {
+            GazeLine(state)
+            Spacer(Modifier.width(14.dp))
+        }
         if (!state.noSlides) Text(text = rs(R.string.this_page, Clock.mmss(state.pageSec)), style = HallType.titleMedium, color = PicoTheme.colorScheme.labelSecondary, maxLines = 1)
     }
     TipLine(state.tip?.takeIf { it == Tip.FIRST_TALK }, onEvent)
@@ -739,6 +758,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.Settings(state: HallU
             headlineContent = { Text(text = rs(R.string.replace), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
             supportingContent = { Text(text = rs(R.string.replace_sub), maxLines = 1, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary) },
             trailingContent = { Secondary(rs(R.string.replace_key), "settings_replace", large = false) { onEvent(HallEvent.Replace) } },
+        )
+        ListItem(
+            headlineContent = { Text(text = rs(R.string.gaze_row), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
+            supportingContent = {
+                val why = when (state.eyeReason) { "permission" -> rs(R.string.gaze_reason_permission); null -> ""; else -> rs(R.string.gaze_reason_unsupported) }
+                Text(text = if (state.gazeSource == GazeSource.EYE) rs(R.string.gaze_eye) else rs(R.string.gaze_head) + if (why.isNotEmpty()) " · $why" else "", maxLines = 1, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary)
+            },
+            trailingContent = { if (state.eyeReason == "permission") Secondary(rs(R.string.eye_allow), "settings_eye", large = false) { onEvent(HallEvent.EyeAllow) } },
         )
         ListItem(
             headlineContent = { Text(text = rs(R.string.mic_status), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
