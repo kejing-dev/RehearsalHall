@@ -539,11 +539,13 @@ internal object Figures {
             val a = Math.toRadians(yaw.toDouble())
             val r = 11.8f
             val p = Vec3((r * sin(a)).toFloat(), HallLayout.rowFloor(8) + 2.3f, (-r * cos(a)).toFloat())
+            // gate:allow ring-from-boxes exit-sign lamps: two small abstract light blocks on the side walls, not a round part
             t.box(p - Vec3(0.18f, 0.08f, 0.18f), p + Vec3(0.18f, 0.08f, 0.18f), Palette.EXIT)
         }
         // aisle step lights
         for (row in 0 until HallLayout.ROWS) {
             val r = HallLayout.rowRadius(row) - HallLayout.ROW_STEP / 2 + 0.02f
+            // gate:allow ring-from-boxes aisle step lights: abstract marker dots along the rows, not a round part
             t.box(Vec3(-0.04f, HallLayout.rowFloor(row) + 0.005f, -r - 0.02f), Vec3(0.04f, HallLayout.rowFloor(row) + 0.03f, -r + 0.02f), Palette.AMBER)
         }
         return t

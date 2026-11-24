@@ -8,6 +8,8 @@ enum class Base(val page: String) {
     S00("loading"), S01("setup"), S02("decks"), S03("importing"), S04("importError"), S05("countdown"), S06("speaking"),
     S07("paused"), S08("endConfirm"), S09("report"), S10("replay"), S11("settings"), S12("history"), S13("micAsk"),
     S14("confirm"), S15("tooShort"),
+    /** v0.1.3 (B19): settings -> "how to" page. */
+    S16("howTo"),
 }
 
 enum class LanguagePref { SYSTEM, ZH, EN }
@@ -21,7 +23,8 @@ enum class Lights(val level: Float) { ENTRY(1f), TALK(0.15f), REPORT(0.7f) }
 
 enum class ImportError { PASSWORD, NOT_SUPPORTED, FAILED }
 
-enum class ConfirmKind { DELETE_DECK, CLEAR_ALL }
+/** v0.1.3: EXIT (D26 quit app), RESTART (D44: a paused talk is thrown away only after a confirm). */
+enum class ConfirmKind { DELETE_DECK, CLEAR_ALL, EXIT, RESTART }
 
 /** A hint line at the top of the lectern panel (design M5 / M8 / mic denied). */
 enum class Tip { FIRST_RUN, FIRST_TALK, INTERRUPTED, MIC_DENIED, IMPORT_CAPPED, PICKER_MISSING }
@@ -130,6 +133,12 @@ sealed interface HallEvent {
     data class Language(val pref: LanguagePref) : HallEvent
     data class Drift(val on: Boolean) : HallEvent
     data object ClearAll : HallEvent
+    /** Settings [退出应用] (D26): asks first. */
+    data object Quit : HallEvent
+    /** Paused [重新开始] (D44): asks first, then a fresh countdown. */
+    data object Restart : HallEvent
+    /** Settings [怎么操作] (B19). */
+    data object OpenHowTo : HallEvent
     data object ConfirmYes : HallEvent
     data object ConfirmNo : HallEvent
     data object DismissTip : HallEvent

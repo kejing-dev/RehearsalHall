@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -63,6 +64,7 @@ import io.embodit.rehearsalhall.domain.Samples
 import io.embodit.rehearsalhall.domain.Session
 import io.embodit.rehearsalhall.domain.Voice
 import io.embodit.rehearsalhall.domain.ZoneLevel
+import io.embodit.rehearsalhall.platform.backKeys
 import io.embodit.rehearsalhall.ui.hall.Base
 import io.embodit.rehearsalhall.ui.hall.ConfirmKind
 import io.embodit.rehearsalhall.ui.hall.GazeSource
@@ -94,6 +96,8 @@ private fun Glass(w: Float, h: Float, dim: Boolean = false, padding: Int = 20, c
                 .clip(GlassShape)
                 .backgroundMaterial(enable = true, style = Material.Regular)
                 .then(glassRefresh())
+                // D60: BACK / B go to HallEvent.Back, A / X / Y / ENTER / DPAD_CENTER are eaten before any focused button
+                .backKeys("panel")
     ) {
         // design glassFallback (N10): with the house lights at 15 % an inner layer keeps the text readable
         if (dim) Box(Modifier.fillMaxSize().background(PicoTheme.colorScheme.fillTertiary))
@@ -128,6 +132,7 @@ internal fun LecternPanel(state: HallUiState?, onEvent: (HallEvent) -> Unit) {
                 Base.S13 -> MicAsk(onEvent)
                 Base.S14 -> ConfirmPage(state, onEvent)
                 Base.S15 -> TooShort(onEvent)
+                Base.S16 -> HowTo(onEvent)
             }
         }
     }
@@ -142,7 +147,7 @@ private fun TitleBar(title: String, onBack: (() -> Unit)? = null, trailing: @Com
             SmallIcon(R.drawable.ic_chevron_left, rs(R.string.back), "back", onClick = onBack)
             Spacer(Modifier.width(12.dp))
         }
-        Text(text = title, style = HallType.title, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text = title, style = HallType.title, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, onTextLayout = fits("lectern/title"))
         trailing()
     }
 }
@@ -163,7 +168,7 @@ private fun TipLine(tip: Tip?, onEvent: (HallEvent) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(14.dp)).background(PicoTheme.colorScheme.fillSecondary).padding(start = 14.dp, end = 4.dp).height(40.dp),
     ) {
-        Text(text = text, style = HallType.body, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text = text, style = HallType.body, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, onTextLayout = fits("lectern/tip"))
         SmallIcon(R.drawable.ic_close, rs(R.string.close), "tip_close", size = 32) { onEvent(HallEvent.DismissTip) }
     }
 }
@@ -174,7 +179,7 @@ private fun SmallIcon(icon: Int, desc: String, name: String, size: Int = 44, ena
     IconButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.probe(name),
+        modifier = Modifier.focusProperties { canFocus = false }.probe(name),
         colors = IconButtonDefaults.iconButtonColors(containerColor = if (active) PicoTheme.colorScheme.interaction else PicoTheme.colorScheme.fillTertiary, contentColor = ink),
         size = IconButtonDefaults.iconButtonSize(width = size.dp, height = size.dp),
     ) { Icon(painter = painterResource(icon), contentDescription = desc, modifier = Modifier.size((size * 0.48f).dp), tint = ink) }
@@ -184,8 +189,8 @@ private fun SmallIcon(icon: Int, desc: String, name: String, size: Int = 44, ena
 private fun Primary(text: String, name: String, large: Boolean = true, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = Modifier.probe(name),
-        size = if (large) ButtonDefaults.Regular.copy(height = 56.dp) else ButtonDefaults.Regular.copy(height = 48.dp),
+        modifier = Modifier.focusProperties { canFocus = false }.probe(name),
+        size = ButtonDefaults.Regular.copy(height = 64.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = PicoTheme.colorScheme.interaction, contentColor = HallColors.Ink),
     ) { Text(text = text, maxLines = 1, color = HallColors.Ink) }
@@ -196,8 +201,8 @@ private fun Secondary(text: String, name: String, large: Boolean = true, danger:
     val ink = if (danger) PicoTheme.colorScheme.error else PicoTheme.colorScheme.labelPrimary
     Button(
         onClick = onClick,
-        modifier = Modifier.probe(name),
-        size = if (large) ButtonDefaults.Regular.copy(height = 56.dp) else ButtonDefaults.Regular.copy(height = 48.dp),
+        modifier = Modifier.focusProperties { canFocus = false }.probe(name),
+        size = ButtonDefaults.Regular.copy(height = 64.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = PicoTheme.colorScheme.fillTertiary, contentColor = ink),
     ) { Text(text = text, maxLines = 1, color = ink) }
@@ -207,8 +212,8 @@ private fun Secondary(text: String, name: String, large: Boolean = true, danger:
 private fun TextKey(text: String, name: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = Modifier.probe(name),
-        size = ButtonDefaults.Regular.copy(height = 48.dp),
+        modifier = Modifier.focusProperties { canFocus = false }.probe(name),
+        size = ButtonDefaults.Regular.copy(height = 64.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = PicoTheme.colorScheme.labelPrimary),
     ) { Text(text = text, maxLines = 1, style = HallType.body) }
@@ -217,12 +222,12 @@ private fun TextKey(text: String, name: String, onClick: () -> Unit) {
 /** The bottom row: secondary keys, then the primary one in the bottom-right corner. */
 @Composable
 private fun BottomRow(content: @Composable () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().height(60.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) { content() }
+    Row(modifier = Modifier.fillMaxWidth().height(68.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) { content() }
 }
 
 @Composable
-private fun Body(text: String, modifier: Modifier = Modifier, secondary: Boolean = false, lines: Int = 3) {
-    Text(text = text, style = HallType.body, color = if (secondary) PicoTheme.colorScheme.labelSecondary else PicoTheme.colorScheme.labelPrimary, modifier = modifier, maxLines = lines, overflow = TextOverflow.Ellipsis)
+private fun Body(text: String, modifier: Modifier = Modifier, secondary: Boolean = false, lines: Int = 3, name: String = "body") {
+    Text(text = text, style = HallType.body, color = if (secondary) PicoTheme.colorScheme.labelSecondary else PicoTheme.colorScheme.labelPrimary, modifier = modifier, maxLines = lines, overflow = TextOverflow.Ellipsis, onTextLayout = fits("lectern/$name"))
 }
 
 @Composable
@@ -262,7 +267,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.Setup(state: HallUiSt
     val deck = state.deck
     ListItem(
         leadingContent = { if (deck != null) Thumb(deck.id, 0, 96, 54) },
-        headlineContent = { Text(text = deck?.title ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis, color = PicoTheme.colorScheme.labelPrimary) },
+        headlineContent = { Text(text = deck?.title ?: "", maxLines = 2, overflow = TextOverflow.Ellipsis, color = PicoTheme.colorScheme.labelPrimary, onTextLayout = fits("setup/deck_title")) },
         supportingContent = { Text(text = deck?.let { r.deckLine(it) } ?: "", maxLines = 1, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary) },
         trailingContent = { TextKey(rs(R.string.change_deck), "setup_change") { onEvent(HallEvent.ChangeDeck) } },
     )
@@ -326,7 +331,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.Decks(state: HallUiSt
                 Column {
                     ListItem(
                         leadingContent = { if (!d.noSlides) Thumb(d.id, 0, 80, 45) else Box(Modifier.size(80.dp, 45.dp)) },
-                        headlineContent = { Text(text = if (d.source == Deck.SOURCE_SAMPLE) rs(R.string.sample_prefix, d.title) else d.title, maxLines = 1, overflow = TextOverflow.Ellipsis, color = PicoTheme.colorScheme.labelPrimary) },
+                        headlineContent = { Text(text = if (d.source == Deck.SOURCE_SAMPLE) rs(R.string.sample_prefix, d.title) else d.title, maxLines = 2, overflow = TextOverflow.Ellipsis, color = PicoTheme.colorScheme.labelPrimary, onTextLayout = fits("decks/title")) },
                         supportingContent = {
                             val date = if (imported) " · " + SimpleDateFormat(if (r.zh()) "M月d日" else "MMM d", if (r.zh()) Locale.CHINA else Locale.US).format(Date(d.createdAt)) else ""
                             Text(text = r.deckLine(d) + date, maxLines = 1, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary)
@@ -487,6 +492,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.Paused(state: HallUiS
     TextKey(rs(R.string.replace), "paused_replace") { onEvent(HallEvent.Replace) }
     Spacer(Modifier.weight(1f))
     BottomRow {
+        Secondary(rs(R.string.restart), "paused_restart") { onEvent(HallEvent.Restart) }
         Secondary(rs(R.string.end), "paused_end") { onEvent(HallEvent.End) }
         Primary(rs(R.string.resume), "paused_resume") { onEvent(HallEvent.Resume) }
     }
@@ -542,6 +548,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.ReportPage(state: Hal
     val rep = s.report
     val r = LocalHallResources.current
     TitleBar(rs(R.string.report_title), onBack = if (view.readOnly) ({ onEvent(HallEvent.Back) }) else null) {
+        // gate:allow tabs-segment the lectern is a SpatialView panel inside the Stage (not a system window, so no native TabBar); these switch views of one report page
         SegmentControl(modifier = Modifier.width(300.dp).height(44.dp), backgroundColor = PicoTheme.colorScheme.fillTertiary) {
             listOf(ReportTab.GAZE to R.string.tab_gaze, ReportTab.TIME to R.string.tab_time, ReportTab.VOICE to R.string.tab_voice).forEach { (tab, label) ->
                 SegmentItem(
@@ -584,7 +591,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.ReportPage(state: Hal
 @Composable
 private fun GazeTab(rep: Report, s: Session, r: Resources) {
     Column {
-        Text(text = r.verdict(rep), style = HallType.title, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(text = r.verdict(rep), style = HallType.title, color = PicoTheme.colorScheme.labelPrimary, maxLines = 3, overflow = TextOverflow.Ellipsis, onTextLayout = fits("report/verdict"))
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             // 3 x 3 grid, back row on top as seen from the stage
@@ -755,11 +762,6 @@ private fun androidx.compose.foundation.layout.ColumnScope.Settings(state: HallU
             trailingContent = { Switch(checked = state.driftOn, onCheckedChange = { onEvent(HallEvent.Drift(it)) }, modifier = Modifier.probe("settings_drift")) },
         )
         ListItem(
-            headlineContent = { Text(text = rs(R.string.replace), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
-            supportingContent = { Text(text = rs(R.string.replace_sub), maxLines = 1, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary) },
-            trailingContent = { Secondary(rs(R.string.replace_key), "settings_replace", large = false) { onEvent(HallEvent.Replace) } },
-        )
-        ListItem(
             headlineContent = { Text(text = rs(R.string.gaze_row), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
             supportingContent = {
                 val why = when (state.eyeReason) { "permission" -> rs(R.string.gaze_reason_permission); null -> ""; else -> rs(R.string.gaze_reason_unsupported) }
@@ -776,6 +778,49 @@ private fun androidx.compose.foundation.layout.ColumnScope.Settings(state: HallU
             headlineContent = { Text(text = rs(R.string.clear_all), maxLines = 1, color = PicoTheme.colorScheme.error) },
             trailingContent = { Secondary(rs(R.string.clear_key), "settings_clear", large = false, danger = true) { onEvent(HallEvent.ClearAll) } },
         )
+    }
+    // D26 / D44 / B19: fixed under the list, always on the first screen
+    BottomRow {
+        Secondary(rs(R.string.how_to), "settings_howto") { onEvent(HallEvent.OpenHowTo) }
+        Spacer(Modifier.weight(1f))
+        Secondary(rs(R.string.replace_key), "settings_replace") { onEvent(HallEvent.Replace) }
+        Secondary(rs(R.string.quit_app), "settings_quit", danger = true) { onEvent(HallEvent.Quit) }
+    }
+}
+
+/** B19 (v0.1.3): one line per main action, the hand gesture and the controller way. */
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.HowTo(onEvent: (HallEvent) -> Unit) {
+    TitleBar(rs(R.string.how_to), onBack = { onEvent(HallEvent.Back) })
+    val rows =
+        listOf(
+            Triple(R.drawable.ic_history, R.string.how_to_talk, R.string.how_to_talk_hand to R.string.how_to_talk_pad),
+            Triple(R.drawable.ic_play, R.string.how_to_start, R.string.how_to_start_hand to R.string.how_to_start_pad),
+            Triple(R.drawable.ic_chevron_right, R.string.how_to_page, R.string.how_to_page_hand to R.string.how_to_page_pad),
+            Triple(R.drawable.ic_pause, R.string.how_to_pause, R.string.how_to_pause_hand to R.string.how_to_pause_pad),
+            Triple(R.drawable.ic_check, R.string.how_to_end, R.string.how_to_end_hand to R.string.how_to_end_pad),
+            Triple(R.drawable.ic_chevron_left, R.string.how_to_back, R.string.how_to_back_hand to R.string.how_to_back_pad),
+            Triple(R.drawable.ic_recenter, R.string.how_to_recall, R.string.how_to_recall_hand to R.string.how_to_recall_pad),
+        )
+    val list = rememberLazyListState()
+    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+        LazyColumn(state = list, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize().padding(top = 6.dp, end = 12.dp)) {
+            items(rows.size) { i ->
+                val (icon, title, ways) = rows[i]
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().probe("howto_$i")) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(PicoTheme.colorScheme.fillTertiary), contentAlignment = Alignment.Center) {
+                        Icon(painter = painterResource(icon), contentDescription = null, modifier = Modifier.size(22.dp), tint = PicoTheme.colorScheme.labelPrimary)
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Text(text = rs(title), style = HallType.titleMedium, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.width(150.dp), maxLines = 2, onTextLayout = fits("howto/title_$i"))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = rs(R.string.how_to_hand) + " · " + rs(ways.first), style = HallType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, onTextLayout = fits("howto/hand_$i"))
+                        Text(text = rs(R.string.how_to_pad) + " · " + rs(ways.second), style = HallType.label, color = PicoTheme.colorScheme.labelSecondary, maxLines = 2, onTextLayout = fits("howto/pad_$i"))
+                    }
+                }
+            }
+        }
+        ScrollIndicator(state = list)
     }
 }
 
@@ -818,7 +863,13 @@ private fun androidx.compose.foundation.layout.ColumnScope.ConfirmPage(state: Ha
     TitleBar(rs(R.string.confirm_title))
     Spacer(Modifier.weight(1f))
     Text(
-        text = if (c?.kind == ConfirmKind.DELETE_DECK) rs(R.string.confirm_delete_deck, c.sessions) else rs(R.string.confirm_clear_all),
+        text =
+            when (c?.kind) {
+                ConfirmKind.DELETE_DECK -> rs(R.string.confirm_delete_deck, c.sessions)
+                ConfirmKind.EXIT -> rs(R.string.confirm_exit)
+                ConfirmKind.RESTART -> rs(R.string.confirm_restart)
+                else -> rs(R.string.confirm_clear_all)
+            },
         style = HallType.title,
         color = PicoTheme.colorScheme.labelPrimary,
     )
@@ -827,11 +878,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.ConfirmPage(state: Ha
         Secondary(rs(R.string.cancel), "confirm_no") { onEvent(HallEvent.ConfirmNo) }
         Button(
             onClick = { onEvent(HallEvent.ConfirmYes) },
-            modifier = Modifier.probe("confirm_yes"),
-            size = ButtonDefaults.Regular.copy(height = 56.dp),
+            modifier = Modifier.focusProperties { canFocus = false }.probe("confirm_yes"),
+            size = ButtonDefaults.Regular.copy(height = 64.dp),
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(containerColor = PicoTheme.colorScheme.error, contentColor = HallColors.Ink),
-        ) { Text(text = rs(R.string.delete), maxLines = 1, color = HallColors.Ink) }
+        ) {
+            val yes = when (c?.kind) { ConfirmKind.EXIT -> R.string.quit_key; ConfirmKind.RESTART -> R.string.restart; ConfirmKind.CLEAR_ALL -> R.string.clear_key; else -> R.string.delete }
+            Text(text = rs(yes), maxLines = 1, color = HallColors.Ink)
+        }
     }
 }
 

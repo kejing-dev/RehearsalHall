@@ -1,3 +1,4 @@
+// gate:allow resource-global SharedResources.keep() calls toGlobal() on every texture / material it is handed
 package io.embodit.rehearsalhall.ui.hall.scene
 
 import android.graphics.Bitmap

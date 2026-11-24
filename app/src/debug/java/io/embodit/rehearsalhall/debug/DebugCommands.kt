@@ -8,6 +8,7 @@ import io.embodit.rehearsalhall.ui.hall.HallEvent
 import io.embodit.rehearsalhall.ui.hall.LanguagePref
 import io.embodit.rehearsalhall.ui.hall.ReportTab
 import io.embodit.rehearsalhall.ui.hall.debug.Probe
+import io.embodit.rehearsalhall.ui.hall.components.TextFit
 import java.io.File
 
 /**
@@ -30,7 +31,7 @@ import java.io.File
  *   tab gaze|time|voice | replay | done | again
  *   lang system|zh|en | drift on|off | replace
  *   firstRun reset | killFlag                 M5 again / simulate a kill during a talk (M8 on next start)
- *   dump | pose | panels | audience
+ *   dump | pose | panels | audience | fit | fitreset (OVERFLOW summary, D13)
  */
 object DebugCommands {
     fun run(context: Context, cmd: String, s: String?, a: String?) {
@@ -106,6 +107,8 @@ object DebugCommands {
             "firstrun" -> c.debugFirstRunReset()
             "killflag" -> c.debugKillFlag()
             "dump" -> return c.dump()
+            "fit" -> return TextFit.summary()
+            "fitreset" -> { TextFit.reset(); return "FIT reset" }
             "pose" -> return scene()?.poseLine() ?: "no scene"
             "audience" -> return scene()?.audienceLine() ?: "no scene"
             "panels" -> {

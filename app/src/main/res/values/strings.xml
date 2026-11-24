@@ -67,9 +67,9 @@
     <string name="paused_title">Paused · %1$s</string>
     <string name="paused_hint">The clock and the counting have stopped. The audience waits.</string>
     <string name="resume">Resume</string>
-    <string name="replace">Re-place the hall</string>
-    <string name="replace_sub">Sets the hall around where you stand now</string>
-    <string name="replace_key">Re-place</string>
+    <string name="replace">Bring back to front</string>
+    <string name="replace_sub">Sets the hall and lectern around where you face now</string>
+    <string name="replace_key">Bring back to front</string>
     <string name="end_title">End this rehearsal?</string>
     <string name="end_hint">The clock is stopped while you decide.</string>
     <string name="end_confirm">End, see report</string>
@@ -178,4 +178,34 @@
         <item>Say what you want to work on next and why. Turn to the left and right side of the room on this page.</item>
         <item>Thank the audience. Pause. Look at the middle rows and invite a question.</item>
     </string-array>
+    <!-- v0.1.3: settings first screen (D26 / D44 / B19), restart confirm -->
+    <string name="quit_app">Quit app</string>
+    <string name="quit_key">Quit</string>
+    <string name="confirm_exit">Quit Rehearsal Hall? Your decks and rehearsals are kept.</string>
+    <string name="restart">Start over</string>
+    <string name="confirm_restart">Drop this unfinished talk and start from the top?</string>
+    <string name="how_to">How to use</string>
+    <string name="how_to_hand">Hand</string>
+    <string name="how_to_pad">Controller</string>
+    <string name="how_to_talk">Talk</string>
+    <string name="how_to_talk_hand">Look at the audience and speak, no buttons</string>
+    <string name="how_to_talk_pad">Gaze is recorded by eye tracking (or head direction)</string>
+    <string name="how_to_start">Start</string>
+    <string name="how_to_start_hand">Look at the lectern, pinch Start</string>
+    <string name="how_to_start_pad">Point the ray at it, pull the trigger</string>
+    <string name="how_to_page">Turn pages</string>
+    <string name="how_to_page_hand">Pinch Next or Previous</string>
+    <string name="how_to_page_pad">Right trigger next, left trigger previous</string>
+    <string name="how_to_pause">Pause</string>
+    <string name="how_to_pause_hand">Tap ⏸: the clock and stats stop</string>
+    <string name="how_to_pause_pad">Press B</string>
+    <string name="how_to_end">End and see report</string>
+    <string name="how_to_end_hand">Tap End, then End and see report</string>
+    <string name="how_to_end_pad">Ray and trigger on the same two keys</string>
+    <string name="how_to_back">Back</string>
+    <string name="how_to_back_hand">Tap ‹ at the top left</string>
+    <string name="how_to_back_pad">Press B to go back, never quits</string>
+    <string name="how_to_recall">Bring back to front</string>
+    <string name="how_to_recall_hand">Settings, Bring back to front: the hall turns to you</string>
+    <string name="how_to_recall_pad">Ray and trigger on the same key</string>
 </resources>

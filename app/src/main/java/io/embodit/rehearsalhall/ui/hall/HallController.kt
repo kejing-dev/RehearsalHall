@@ -308,12 +308,18 @@ object HallController {
                 prefs?.edit()?.putBoolean("drift", e.on)?.apply()
                 update("!drift") { it.copy(driftOn = e.on) }
             }
+            HallEvent.Quit -> update("confirm exit") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.EXIT, Base.S11)) }
+            HallEvent.Restart -> if (s.base == Base.S07) update("confirm restart") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.RESTART, Base.S07)) }
+            HallEvent.OpenHowTo -> go(Base.S16)
             HallEvent.ClearAll -> update("confirm clear") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.CLEAR_ALL, Base.S11)) }
             HallEvent.ConfirmYes -> {
                 val cf = s.confirm ?: return go(Base.S01)
+                if (cf.kind == ConfirmKind.EXIT) return quit()
+                if (cf.kind == ConfirmKind.RESTART) return restartTalk()
                 when (cf.kind) {
                     ConfirmKind.DELETE_DECK -> cf.deckId?.let { store?.deleteDeck(it) }
                     ConfirmKind.CLEAR_ALL -> store?.clearSessions()
+                    else -> Unit
                 }
                 update("confirmed") { it.copy(base = cf.returnTo, confirm = null, deckId = if (cf.deckId == it.deckId) Deck.SAMPLE_ID else it.deckId) }
                 reloadDecks()
@@ -343,9 +349,18 @@ object HallController {
         update("!gaze $source") { it.copy(gazeSource = source, eyeReason = reason) }
     }
 
+    /**
+     * BACK / controller B (D60, v0.1.3) and every title-bar back arrow. Never quits, never leaves the Stage: talking ->
+     * pause, countdown -> cancel, end confirm -> keep talking, replay -> report, a sub page -> the page it came from.
+     */
     private fun back() {
         val s = _state.value
         when (s.base) {
+            Base.S05 -> cancelCountdown()
+            Base.S06 -> pauseTalk(Base.S07)
+            Base.S08 -> onEvent(HallEvent.KeepTalking)
+            Base.S10 -> onEvent(HallEvent.ReplayBack)
+            Base.S16 -> go(Base.S11)
             Base.S02, Base.S11, Base.S13, Base.S15 -> go(Base.S01)
             Base.S12 -> go(Base.S01)
             Base.S04 -> go(Base.S02)
@@ -353,6 +368,37 @@ object HallController {
             Base.S14 -> onEvent(HallEvent.ConfirmNo)
             else -> Unit
         }
+    }
+
+    /** Set by HallScreen: closes the Stage, removes the tasks and ends the process (D26 / D44 order). */
+    var quitHook: (() -> Unit)? = null
+
+    private fun quit() {
+        HallLog.i("EXIT confirmed")
+        importJob?.cancel()
+        ticker?.cancel()
+        stopMic()
+        recorder = null
+        runSinceMs = -1L
+        prefs?.edit()?.putBoolean("interrupted", false)?.apply()
+        val hook = quitHook
+        if (hook == null) {
+            HallLog.w("EXIT no quit hook")
+            update("exit (no hook)") { it.copy(base = Base.S11, confirm = null) }
+        } else hook()
+    }
+
+    /** Paused [重新开始] confirmed: this talk is thrown away (never saved), a fresh countdown starts. */
+    private fun restartTalk() {
+        HallLog.i("RESTART confirmed, talk discarded")
+        stopMic()
+        recorder = null
+        runSinceMs = -1L
+        pageSinceMs = -1L
+        runAccumMs = 0L
+        prefs?.edit()?.putBoolean("interrupted", false)?.apply()
+        update("restart") { it.copy(confirm = null) }
+        startCountdown()
     }
 
     private fun scheduleTipTimeout() {
@@ -717,6 +763,7 @@ object HallController {
             "S13" -> go(Base.S13)
             "S14" -> update("debug") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.CLEAR_ALL, Base.S11)) }
             "S15" -> update("debug") { it.copy(base = Base.S15, lights = Lights.ENTRY) }
+            "S16" -> go(Base.S16)
         }
     }
 

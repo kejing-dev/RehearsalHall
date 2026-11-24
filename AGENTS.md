@@ -72,6 +72,19 @@ state, design lockedByCritic). Talk time uses the wall clock (pauses / S08 stop 
 - The scene builds one listener per step (yield after each head mesh): batches of 8 starved input on a cold emulator
   (ANR "Waited 5000ms for FocusEvent"). Headset build time: 6.8 s.
 
+## Factory rules added in v0.1.3 (polish M0)
+
+- BACK / controller B (D60): `platform/BackKeys.kt` catches them in three layers (Activity window callback, every root
+  view's unhandled-key listener, the lectern's Compose root) and sends ONE `HallEvent.Back` per press. Talking -> pause,
+  countdown -> cancel, end confirm -> keep talking, replay -> report, sub page -> previous page; never quits. A / X / Y /
+  ENTER / DPAD_CENTER are eaten (page turns come from controller tracking, not key events) and every button has
+  `focusProperties { canFocus = false }`. The picker / permission helper activities keep the system BACK.
+- Settings (S11) has a fixed bottom row: [怎么操作] (S16, how_to_* strings) [叫回面前] (= the old 重新站位, re-places the
+  hall) [退出应用] (S14 confirm -> closeStage + finishAndRemoveTask on every app task + exitProcess, `HallScreen` quitHook).
+- Paused (S07) has [重新开始] behind an S14 confirm (ConfirmKind.RESTART): the unfinished talk is dropped, a new countdown.
+- Buttons are 64 dp (B31); every fixed-line Text that may clip has `onTextLayout = fits("panel/control")`
+  (`components/TextFit.kt`, logs `OVERFLOW ...`; debug `fit` / `fitreset`).
+
 ## UI rules
 
 - All 2D UI is SpatialUI inside `PicoTheme`. No Material / Material3 (gate: `../spatial-app-factory/bin/material-grep.txt`).
