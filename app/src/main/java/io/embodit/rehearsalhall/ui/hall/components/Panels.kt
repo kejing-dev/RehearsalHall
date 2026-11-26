@@ -241,9 +241,10 @@ private fun Thumb(deckId: String, page: Int, w: Int, h: Int) {
 private fun Resources.deckLine(d: Deck): String =
     when {
         d.noSlides -> getString(R.string.deck_none_sub)
+        d.source == Deck.SOURCE_DOCX -> getString(R.string.deck_script, d.pageCount)
         d.hasNotes -> getString(R.string.deck_pages_notes, d.pageCount)
         else -> getString(R.string.deck_pages, d.pageCount)
-    }
+    } + if (d.partial > 0) getString(R.string.deck_partial, d.partial) else ""
 
 // ---------------------------------------------------------------- S00 / S01
 
@@ -327,14 +328,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.Decks(state: HallUiSt
     Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
         LazyColumn(state = list, modifier = Modifier.fillMaxSize()) {
             items(state.decks, key = { it.id }) { d ->
-                val imported = d.source == Deck.SOURCE_PDF || d.source == Deck.SOURCE_IMAGES
+                val imported = d.imported
                 Column {
                     ListItem(
                         leadingContent = { if (!d.noSlides) Thumb(d.id, 0, 80, 45) else Box(Modifier.size(80.dp, 45.dp)) },
                         headlineContent = { Text(text = if (d.source == Deck.SOURCE_SAMPLE) rs(R.string.sample_prefix, d.title) else d.title, maxLines = 2, overflow = TextOverflow.Ellipsis, color = PicoTheme.colorScheme.labelPrimary, onTextLayout = fits("decks/title")) },
                         supportingContent = {
                             val date = if (imported) " · " + SimpleDateFormat(if (r.zh()) "M月d日" else "MMM d", if (r.zh()) Locale.CHINA else Locale.US).format(Date(d.createdAt)) else ""
-                            Text(text = r.deckLine(d) + date, maxLines = 1, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary)
+                            Text(text = r.deckLine(d) + date, maxLines = 2, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary)
                         },
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -350,7 +351,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.Decks(state: HallUiSt
                     // the row's "⋯" actions open inline (a Stage has no popup menus)
                     if (open == d.id) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                            Secondary(rs(R.string.import_notes), "deck_notes", large = false) { onEvent(HallEvent.ImportNotes(d.id)) }
+                            if (d.source == Deck.SOURCE_PPTX) Secondary(rs(R.string.import_pictures), "deck_pictures", large = false) { onEvent(HallEvent.ImportPictures(d.id)) }
+                            if (d.source != Deck.SOURCE_DOCX) Secondary(rs(R.string.import_notes), "deck_notes", large = false) { onEvent(HallEvent.ImportNotes(d.id)) }
                             Secondary(rs(R.string.delete), "deck_delete", large = false, danger = true) { onEvent(HallEvent.DeleteDeck(d.id)) }
                         }
                     }
@@ -389,14 +391,21 @@ private fun androidx.compose.foundation.layout.ColumnScope.ImportFailed(state: H
     TitleBar(rs(R.string.import_failed_title), onBack = { onEvent(HallEvent.Back) })
     Spacer(Modifier.weight(1f))
     Text(
-        text = rs(when (state.importError) { ImportError.PASSWORD -> R.string.import_err_password; ImportError.NOT_SUPPORTED -> R.string.import_err_type; else -> R.string.import_err_failed }),
+        text =
+            when (state.importError) {
+                ImportError.PASSWORD -> rs(R.string.import_err_password)
+                ImportError.NOT_SUPPORTED -> rs(R.string.import_err_type)
+                ImportError.PAGE_COUNT -> rs(R.string.import_err_pages, state.importDone, state.importTotal)
+                else -> rs(R.string.import_err_failed)
+            },
         style = HallType.title,
         color = PicoTheme.colorScheme.labelPrimary,
+        onTextLayout = fits("import/error"),
     )
     Spacer(Modifier.weight(1f))
     BottomRow {
         Secondary(rs(R.string.back), "import_back") { onEvent(HallEvent.Back) }
-        Primary(rs(R.string.import_retry), "import_retry") { onEvent(HallEvent.RetryImport) }
+        if (state.importError != ImportError.PAGE_COUNT) Primary(rs(R.string.import_retry), "import_retry") { onEvent(HallEvent.RetryImport) }
     }
 }
 

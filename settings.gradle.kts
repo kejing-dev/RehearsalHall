@@ -30,3 +30,4 @@ dependencyResolutionManagement {
 rootProject.name = "RehearsalHall"
 
 include(":app")
+include(":officecore")

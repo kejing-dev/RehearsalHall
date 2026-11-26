@@ -42,15 +42,19 @@
     <string name="deck_none_sub">Just a timer</string>
     <string name="deck_pages">%1$d pages</string>
     <string name="deck_pages_notes">%1$d pages · with notes</string>
-    <string name="import_files">Import PDF or images…</string>
-    <string name="import_hint">Put the file in the headset\'s Download folder first (file manager or USB). PDFs exported from PowerPoint have no notes; import notes as a TXT.</string>
+    <string name="import_files">Import a PPT, document, PDF or images…</string>
+    <string name="import_hint">Put the file in the headset\'s Download folder first (file manager or USB). A PPT brings its speaker notes; a Word document becomes a script, split at headings. For a PPT with many charts, also pick a PDF of the same deck to use its pictures.</string>
+    <string name="deck_script">Script · %1$d parts</string>
+    <string name="deck_partial">" · charts on %1$d pages may be incomplete"</string>
+    <string name="import_pictures">Use PDF pictures</string>
+    <string name="import_err_pages">The PDF has %1$d pages and this PPT has %2$d. Pick a PDF exported from the same deck.</string>
     <string name="import_notes">Import notes</string>
     <string name="importing_title">Importing</string>
     <string name="importing_start">Opening the file…</string>
     <string name="importing_page">Reading page %1$d of %2$d</string>
     <string name="import_failed_title">Could not import</string>
     <string name="import_err_password">This PDF has a password and cannot be opened.</string>
-    <string name="import_err_type">This is not a PDF or an image.</string>
+    <string name="import_err_type">This is not a PPT, Word document, PDF or image.</string>
     <string name="import_err_failed">The file could not be read.</string>
     <string name="import_retry">Choose again</string>
 

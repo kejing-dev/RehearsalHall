@@ -21,7 +21,7 @@ enum class MicPermission { UNKNOWN, GRANTED, DENIED }
 /** How the house lights stand (design `audience.lightsLevels`): entry 100 %, talk 15 %, report 70 %. */
 enum class Lights(val level: Float) { ENTRY(1f), TALK(0.15f), REPORT(0.7f) }
 
-enum class ImportError { PASSWORD, NOT_SUPPORTED, FAILED }
+enum class ImportError { PASSWORD, NOT_SUPPORTED, FAILED, PAGE_COUNT }
 
 /** v0.1.3: EXIT (D26 quit app), RESTART (D44: a paused talk is thrown away only after a confirm). */
 enum class ConfirmKind { DELETE_DECK, CLEAR_ALL, EXIT, RESTART }
@@ -111,6 +111,8 @@ sealed interface HallEvent {
     data class PickDeck(val id: String) : HallEvent
     data object ImportFiles : HallEvent
     data class ImportNotes(val deckId: String) : HallEvent
+
+    data class ImportPictures(val deckId: String) : HallEvent
     data class DeleteDeck(val id: String) : HallEvent
     data object CancelImport : HallEvent
     data object RetryImport : HallEvent

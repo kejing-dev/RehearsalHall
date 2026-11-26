@@ -67,7 +67,7 @@ class Store(private val context: Context) {
         fun deckJson(d: Deck): JSONObject =
             JSONObject()
                 .put("id", d.id).put("title", d.title).put("source", d.source).put("pageCount", d.pageCount)
-                .put("notes", JSONArray(d.notes)).put("targetMinutes", d.targetMinutes).put("createdAt", d.createdAt)
+                .put("notes", JSONArray(d.notes)).put("targetMinutes", d.targetMinutes).put("createdAt", d.createdAt).put("partial", d.partial)
 
         fun deckFrom(o: JSONObject): Deck {
             val notes = o.optJSONArray("notes")
@@ -79,6 +79,7 @@ class Store(private val context: Context) {
                 notes = List(notes?.length() ?: 0) { notes!!.getString(it) },
                 targetMinutes = o.optInt("targetMinutes", 3),
                 createdAt = o.optLong("createdAt"),
+                partial = o.optInt("partial", 0),
             )
         }
 

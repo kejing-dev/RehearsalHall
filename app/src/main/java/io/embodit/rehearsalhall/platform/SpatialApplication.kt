@@ -70,5 +70,5 @@ class SpatialApplication : Application() {
     }
 
     /** The transparent helpers (file picker, permission dialogs) keep the system BACK: it cancels them. */
-    private fun helper(a: Activity) = a is PickerActivity || a is MicPermissionActivity || a is EyePermissionActivity
+    private fun helper(a: Activity) = a is PickerActivity || a is MicPermissionActivity || a is EyePermissionActivity || a is OpenWithActivity
 }

@@ -20,16 +20,16 @@ class PickerActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState != null) return
-        val notes = intent.getBooleanExtra(EXTRA_NOTES, false)
+        val mode = runCatching { Mode.valueOf(intent.getStringExtra(EXTRA_MODE) ?: "") }.getOrDefault(Mode.DECK)
         val pick =
             Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "*/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, if (notes) arrayOf("text/plain") else arrayOf("application/pdf", "image/*"))
-                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, !notes)
+                putExtra(Intent.EXTRA_MIME_TYPES, mode.mimes)
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, mode == Mode.DECK)
             }
         val ok = runCatching { startActivityForResult(pick, REQUEST) }.isSuccess
-        HallLog.i("IMPORT picker started=$ok notes=$notes")
+        HallLog.i("IMPORT picker started=$ok mode=$mode")
         if (!ok) {
             deliver(PickResult.NoPicker)
             finish()
@@ -62,6 +62,13 @@ class PickerActivity : Activity() {
         finish()
     }
 
+    /** What the picker is for: a new deck (several files), notes for a deck, or PDF pictures for a .pptx deck. */
+    enum class Mode(val mimes: Array<String>) {
+        DECK(arrayOf("application/pdf", "image/*", MIME_PPTX, MIME_DOCX)),
+        NOTES(arrayOf("text/plain", MIME_PPTX, MIME_DOCX)),
+        PDF(arrayOf("application/pdf")),
+    }
+
     sealed interface PickResult {
         data class Files(val files: List<File>) : PickResult
 
@@ -72,7 +79,9 @@ class PickerActivity : Activity() {
 
     companion object {
         private const val REQUEST = 51
-        const val EXTRA_NOTES = "notes"
+        const val EXTRA_MODE = "mode"
+        const val MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        const val MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
         /** Set by the controller; called on the main thread. */
         @Volatile var onResult: ((PickResult) -> Unit)? = null
@@ -81,9 +90,9 @@ class PickerActivity : Activity() {
             onResult?.invoke(r)
         }
 
-        fun open(context: Context, notes: Boolean): Boolean =
+        fun open(context: Context, mode: Mode): Boolean =
             runCatching {
-                context.startActivity(Intent(context, PickerActivity::class.java).putExtra(EXTRA_NOTES, notes).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                context.startActivity(Intent(context, PickerActivity::class.java).putExtra(EXTRA_MODE, mode.name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }.isSuccess
     }
 }

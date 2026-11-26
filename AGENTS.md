@@ -85,6 +85,23 @@ state, design lockedByCritic). Talk time uses the wall clock (pauses / S08 stop 
 - Buttons are 64 dp (B31); every fixed-line Text that may clip has `onTextLayout = fits("panel/control")`
   (`components/TextFit.kt`, logs `OVERFLOW ...`; debug `fit` / `fitreset`).
 
+## Open PPT / Word (v0.2.0, polish I1)
+
+- officecore/ = Spatial Office `core` (pkg / text / review / docx / pptx) vendored at 41018a2, original package names
+  `io.embodit.spatialoffice.core.*` kept so a sync is a plain copy. Do not edit it here; see officecore/README.md.
+- .pptx -> `platform/office/SlidePainter` draws every slide 1600 px wide (background, pictures, formatted text, filled
+  shapes, tables, groups, rotation); charts / SmartArt are dashed frames and count into `Deck.partial` (deck list says
+  "N pages may be incomplete"). Speaker notes -> `Deck.notes` (lectern). A .pptx picked together with a PDF of the same
+  page count: pictures from the PDF, notes from the PPT; a pptx deck's row also has [换成 PDF 画面] (ImportPictures).
+- .docx -> talk script (`domain/Office.kt Script`): sections at TITLE / H1 (H2 if no H1) / page breaks, else ~600-char
+  chunks; screen = `ScriptCard` heading card, lectern = the whole section; target minutes from 250 CJK chars or 130
+  words a minute. `Deck.source` = pptx | docx.
+- "Open with" / "Share to" (.pptx / .docx / .pdf): `OpenWithActivity` copies the file, starts the hall, the controller
+  imports it when idle (not during a talk / countdown / import / confirm).
+- Test files: `tools/make_office_samples.py .scratch/office` (python-pptx + python-docx in any venv): talk.pptx (6 slides
+  incl. shapes, table, chart, picture, notes), talk.docx, plain.docx, talk.pdf (6 p), short.pdf (5 p, mismatch).
+- Unit tests: `OfficeTest` (pptx notes / title round trip through core, partial rules, docx sections, pace).
+
 ## UI rules
 
 - All 2D UI is SpatialUI inside `PicoTheme`. No Material / Material3 (gate: `../spatial-app-factory/bin/material-grep.txt`).
@@ -121,7 +138,8 @@ or `tools/dev.sh cmd NAME 'ARGS'`. Each answers `CMD NAME -> result` (tag `Rehea
 | `mic on|off|nosignal` | microphone switch / "no signal" |
 | `driftAfter SEC` | shortens the 60 s drift timers (T12) |
 | `countdown hold|run` | S05 holds at "2" for screenshots |
-| `importPath /sdcard/Download/x.pdf` | import without the picker (T3) |
+| `importPath /sdcard/Download/x.pdf` | import without the picker (T3); also .pptx / .docx; `a.pptx|a.pdf` = PPT notes + PDF pictures |
+| `importPictures <deck> <pdf>` / `importNotes <deck> <txt/pptx/docx>` | the deck row ⋯ actions |
 | `target MIN` `deck sample|none|ID` `tab gaze|time|voice` `replay` `done` `again` `back` | |
 | `lang system|zh|en` `drift on|off` `replace` | |
 | `firstRun reset` / `killFlag` | M5 again / kill during a talk -> M8 on the next start |

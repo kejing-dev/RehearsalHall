@@ -113,6 +113,7 @@ object HallController {
             )
         reloadDecks()
         PickerActivity.onResult = { r -> onPicked(r) }
+        io.embodit.rehearsalhall.platform.OpenWithActivity.onFiles = { scope.launch { openWithIfReady() } }
         MicPermissionActivity.onResult = { ok -> onMicPermission(ok) }
         EyePermissionActivity.onResult = { ok -> scope.launch { HallLog.i("EYE permission result=$ok"); logState("!eye permission $ok") } }
         HallLog.i("CONTROLLER started lang=$lang interrupted=$interrupted firstRun=$firstRun")
@@ -213,6 +214,7 @@ object HallController {
                 if (_state.value.tip == Tip.FIRST_RUN) prefs?.edit()?.putBoolean("firstRunDone", true)?.apply()
                 scheduleTipTimeout()
                 askEyeOnce()
+                openWithIfReady()
             } else if (s.base == Base.S07) update("!replaced in S07") { it }
             HallEvent.Start, HallEvent.Again -> startCountdown()
             HallEvent.ChangeDeck -> go(Base.S02)
@@ -247,14 +249,19 @@ object HallController {
                 go(Base.S01)
             }
             HallEvent.ImportFiles, HallEvent.RetryImport -> {
-                importNotesFor = null
+                pickFor = null
                 val c = app
-                if (c == null || !PickerActivity.open(c, notes = false)) onPicked(PickerActivity.PickResult.NoPicker)
+                if (c == null || !PickerActivity.open(c, PickerActivity.Mode.DECK)) onPicked(PickerActivity.PickResult.NoPicker)
             }
             is HallEvent.ImportNotes -> {
-                importNotesFor = e.deckId
+                pickFor = PickerActivity.Mode.NOTES to e.deckId
                 val c = app
-                if (c == null || !PickerActivity.open(c, notes = true)) onPicked(PickerActivity.PickResult.NoPicker)
+                if (c == null || !PickerActivity.open(c, PickerActivity.Mode.NOTES)) onPicked(PickerActivity.PickResult.NoPicker)
+            }
+            is HallEvent.ImportPictures -> {
+                pickFor = PickerActivity.Mode.PDF to e.deckId
+                val c = app
+                if (c == null || !PickerActivity.open(c, PickerActivity.Mode.PDF)) onPicked(PickerActivity.PickResult.NoPicker)
             }
             is HallEvent.DeleteDeck -> {
                 val n = store?.loadSessions()?.count { it.deckId == e.id } ?: 0
@@ -672,18 +679,57 @@ object HallController {
     // import
     // =========================================================================================
 
-    private var importNotesFor: String? = null
+    /**
+     * A file handed over by "open with" (I1): imported when the hall is idle on a lectern page (not during a talk,
+     * a countdown or another import); otherwise it waits until the next time the hall is ready.
+     */
+    private fun openWithIfReady() {
+        val s = _state.value
+        if (!s.loaded || s.base in HallUiState.TALKING || s.base in setOf(Base.S00, Base.S03, Base.S05, Base.S14)) return
+        val files = io.embodit.rehearsalhall.platform.OpenWithActivity.take() ?: return
+        HallLog.i("OPENWITH import ${files.map { it.name }}")
+        importFiles(files)
+    }
+
+    /** What the open picker is for besides a new deck: (NOTES | PDF, deck id). */
+    private var pickFor: Pair<PickerActivity.Mode, String>? = null
 
     private fun onPicked(r: PickerActivity.PickResult) {
         scope.launch {
-            val notesFor = importNotesFor
-            importNotesFor = null
+            val forDeck = pickFor
+            pickFor = null
             when (r) {
                 PickerActivity.PickResult.NoPicker -> update("!no picker") { it.copy(tip = Tip.PICKER_MISSING, base = if (it.base == Base.S04) Base.S02 else it.base) }
                 PickerActivity.PickResult.Cancelled -> if (_state.value.base == Base.S04) go(Base.S02)
-                is PickerActivity.PickResult.Files -> if (notesFor != null) importNotes(notesFor, r.files.first()) else importFiles(r.files)
+                is PickerActivity.PickResult.Files ->
+                    when (forDeck?.first) {
+                        PickerActivity.Mode.NOTES -> importNotes(forDeck.second, r.files.first())
+                        PickerActivity.Mode.PDF -> importPictures(forDeck.second, r.files.first())
+                        else -> importFiles(r.files)
+                    }
             }
         }
+    }
+
+    /** A .pptx deck's [换成 PDF 画面] (I1): the same deck as PDF replaces the drawn pages. Debug `importPictures <deck> <pdf>`. */
+    fun importPictures(deckId: String, file: File) {
+        val st = store ?: return
+        val deck = _state.value.decks.firstOrNull { it.id == deckId } ?: return
+        update("importing") { it.copy(base = Base.S03, importDone = 0, importTotal = 0, importError = null) }
+        importJob =
+            scope.launch {
+                val r = withContext(Dispatchers.IO) { Importer.replacePictures(st, deck, file) }
+                HallLog.i("IMPORT pictures deck=$deckId result=$r")
+                when (r) {
+                    Importer.Pictures.Ok -> {
+                        reloadDecks(select = deckId)
+                        update("imported") { it.copy(base = if (it.base == Base.S03) Base.S02 else it.base) }
+                    }
+                    Importer.Pictures.Password -> update("import error") { it.copy(base = Base.S04, importError = ImportError.PASSWORD) }
+                    is Importer.Pictures.Mismatch -> update("import error") { it.copy(base = Base.S04, importError = ImportError.PAGE_COUNT, importDone = r.pdfPages, importTotal = deck.pageCount) }
+                    Importer.Pictures.Failed -> update("import error") { it.copy(base = Base.S04, importError = ImportError.FAILED) }
+                }
+            }
     }
 
     /** Debug `importPath <file on the device>`: the same path as a picked file. */
@@ -711,12 +757,15 @@ object HallController {
             }
     }
 
+    /** Debug `importNotes <deck> <file>`: the deck row's ⋯ [导入备注] without the picker. */
+    fun debugImportNotes(deckId: String, file: File) = importNotes(deckId, file)
+
     private fun importNotes(deckId: String, file: File) {
         val st = store ?: return
         val deck = _state.value.decks.firstOrNull { it.id == deckId } ?: return
         if (deck.source == Deck.SOURCE_SAMPLE || deck.noSlides) return
-        val text = runCatching { file.readText() }.getOrNull() ?: return
-        st.saveDeck(deck.copy(notes = Deck.parseNotes(text, deck.pageCount)))
+        val notes = Importer.notesFrom(file, deck.pageCount) ?: return
+        st.saveDeck(deck.copy(notes = notes))
         reloadDecks()
         HallLog.i("IMPORT notes deck=$deckId")
     }

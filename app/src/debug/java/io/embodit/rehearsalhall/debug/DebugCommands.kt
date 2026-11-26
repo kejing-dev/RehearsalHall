@@ -26,7 +26,8 @@ import java.io.File
  *   mic on|off|nosignal                       microphone switch / "no signal"
  *   driftAfter <sec>                          shortens the 60 s drift timers
  *   countdown hold|run                        S05 holds at "2" (screenshots) / runs
- *   importPath <file on the device>           imports without the picker (e.g. /sdcard/Download/deck.pdf)
+ *   importPath <file>[|<file>]                imports without the picker (.pdf / images / .pptx / .docx; "x.pptx|x.pdf" = PPT notes + PDF pictures)
+ *   importPictures <deck> <pdf> | importNotes <deck> <txt/pptx/docx>   the deck row ⋯ actions
  *   target <min> | deck sample|none|<id>      target length / select a deck
  *   tab gaze|time|voice | replay | done | again
  *   lang system|zh|en | drift on|off | replace
@@ -86,13 +87,19 @@ object DebugCommands {
             "driftafter" -> c.driftAfterSec = args[0].toFloat()
             "countdown" -> c.holdCountdown = args.firstOrNull() == "hold"
             "importpath" -> {
-                val f = File(args.joinToString(" "))
-                if (!f.exists()) return "missing ${f.path}"
+                // several files (a .pptx and its PDF) separated by "|"
+                val fs = args.joinToString(" ").split('|').map { File(it.trim()) }
+                fs.firstOrNull { !it.exists() }?.let { return "missing ${it.path}" }
                 // copy out of shared storage first, like the picker does
                 val dir = File(context.cacheDir, "import/debug").also { it.deleteRecursively(); it.mkdirs() }
-                val out = File(dir, f.name)
+                c.importFiles(fs.map { f -> File(dir, f.name).also { f.copyTo(it, overwrite = true) } })
+            }
+            "importpictures", "importnotes" -> {
+                val f = File(args.drop(1).joinToString(" "))
+                if (!f.exists()) return "missing ${f.path}"
+                val out = File(File(context.cacheDir, "import/debug2").also { it.deleteRecursively(); it.mkdirs() }, f.name)
                 f.copyTo(out, overwrite = true)
-                c.importFiles(listOf(out))
+                if (cmd == "importpictures") c.importPictures(args[0], out) else c.debugImportNotes(args[0], out)
             }
             "target" -> c.debugTarget(args[0].toInt())
             "deck" -> c.onEvent(HallEvent.PickDeck(args[0]))

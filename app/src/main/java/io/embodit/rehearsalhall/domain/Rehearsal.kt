@@ -258,6 +258,8 @@ data class Deck(
     val notes: List<String>,
     val targetMinutes: Int,
     val createdAt: Long,
+    /** Pages of a .pptx deck with something the slide painter shows only as a dashed frame (charts, SmartArt). */
+    val partial: Int = 0,
 ) {
     val noSlides: Boolean
         get() = source == SOURCE_NONE
@@ -265,10 +267,16 @@ data class Deck(
     val hasNotes: Boolean
         get() = notes.any { it.isNotBlank() }
 
+    /** Made from a user's file (can be deleted, can take notes / PDF pictures). */
+    val imported: Boolean
+        get() = source == SOURCE_PDF || source == SOURCE_IMAGES || source == SOURCE_PPTX || source == SOURCE_DOCX
+
     companion object {
         const val SOURCE_SAMPLE = "sample"
         const val SOURCE_PDF = "pdf"
         const val SOURCE_IMAGES = "images"
+        const val SOURCE_PPTX = "pptx"
+        const val SOURCE_DOCX = "docx"
         const val SOURCE_NONE = "none"
         const val SAMPLE_ID = "sample"
         const val NONE_ID = "none"
