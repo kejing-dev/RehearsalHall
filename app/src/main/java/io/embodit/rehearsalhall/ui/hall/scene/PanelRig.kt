@@ -55,9 +55,9 @@ internal class PanelRig(private val stageRoot: Entity, private val onVisibility:
 
         /** Scale along the panel's width and height (a head-locked glass is sized by the camera intrinsics). */
         var scaleX = 1f
-            private set
+            internal set
         var scaleY = 1f
-            private set
+            internal set
 
         /** Largest pitch towards the viewer (sky tags overhead tilt almost flat). */
         var maxPitch: Float = 1.0471976f

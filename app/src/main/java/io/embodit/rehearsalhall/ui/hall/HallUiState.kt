@@ -27,7 +27,7 @@ enum class ImportError { PASSWORD, NOT_SUPPORTED, FAILED, PAGE_COUNT }
 enum class ConfirmKind { DELETE_DECK, CLEAR_ALL, EXIT, RESTART }
 
 /** A hint line at the top of the lectern panel (design M5 / M8 / mic denied). */
-enum class Tip { FIRST_RUN, FIRST_TALK, INTERRUPTED, MIC_DENIED, IMPORT_CAPPED, PICKER_MISSING }
+enum class Tip { FIRST_RUN, FIRST_TALK, INTERRUPTED, MIC_DENIED, IMPORT_CAPPED, PICKER_MISSING, SEATED }
 
 /** Where "looking" comes from: the eyes (EyeTrackingProvider) or, when they are unavailable, the head direction. */
 enum class GazeSource { EYE, HEAD }
@@ -42,6 +42,9 @@ data class HallUiState(
     val loaded: Boolean = false,
     val language: LanguagePref = LanguagePref.SYSTEM,
     val driftOn: Boolean = true,
+    /** F1: settings "lectern height" and "gaze follow-spot". */
+    val lecternHeight: io.embodit.rehearsalhall.domain.LecternHeight = io.embodit.rehearsalhall.domain.LecternHeight.MID,
+    val spotOn: Boolean = true,
     val micOn: Boolean = false,
     val micPermission: MicPermission = MicPermission.UNKNOWN,
     val decks: List<Deck> = emptyList(),
@@ -134,6 +137,13 @@ sealed interface HallEvent {
     data class OpenSession(val id: String) : HallEvent
     data class Language(val pref: LanguagePref) : HallEvent
     data class Drift(val on: Boolean) : HallEvent
+
+    data class SetLecternHeight(val h: io.embodit.rehearsalhall.domain.LecternHeight) : HallEvent
+
+    data class Spot(val on: Boolean) : HallEvent
+
+    /** From the scene once placed: the speaker's eye height says seated (F1 one-line hint). */
+    data object Seated : HallEvent
     data object ClearAll : HallEvent
     /** Settings [退出应用] (D26): asks first. */
     data object Quit : HallEvent

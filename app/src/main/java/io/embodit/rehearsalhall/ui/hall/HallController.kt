@@ -106,6 +106,8 @@ object HallController {
             HallUiState(
                 language = lang,
                 driftOn = p.getBoolean("drift", true),
+                lecternHeight = runCatching { io.embodit.rehearsalhall.domain.LecternHeight.valueOf(p.getString("lecternHeight", "MID")!!) }.getOrDefault(io.embodit.rehearsalhall.domain.LecternHeight.MID),
+                spotOn = p.getBoolean("spot", true),
                 micOn = p.getBoolean("micOn", false) && micPerm == MicPermission.GRANTED,
                 micPermission = micPerm,
                 deckId = p.getString("deck", Deck.SAMPLE_ID) ?: Deck.SAMPLE_ID,
@@ -315,6 +317,18 @@ object HallController {
                 prefs?.edit()?.putBoolean("drift", e.on)?.apply()
                 update("!drift") { it.copy(driftOn = e.on) }
             }
+            is HallEvent.SetLecternHeight -> {
+                prefs?.edit()?.putString("lecternHeight", e.h.name)?.apply()
+                update("!lectern ${e.h}") { it.copy(lecternHeight = e.h) }
+            }
+            is HallEvent.Spot -> {
+                prefs?.edit()?.putBoolean("spot", e.on)?.apply()
+                update("!spot") { it.copy(spotOn = e.on) }
+            }
+            HallEvent.Seated -> if (s.tip == null && prefs?.getBoolean("seatedHintDone", false) != true) {
+                prefs?.edit()?.putBoolean("seatedHintDone", true)?.apply()
+                update("!tip seated") { it.copy(tip = Tip.SEATED) }
+            }
             HallEvent.Quit -> update("confirm exit") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.EXIT, Base.S11)) }
             HallEvent.Restart -> if (s.base == Base.S07) update("confirm restart") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.RESTART, Base.S07)) }
             HallEvent.OpenHowTo -> go(Base.S16)
@@ -511,7 +525,7 @@ object HallController {
 
     private fun beginTalk() {
         val s = _state.value
-        recorder = GazeRecorder(eyeH)
+        recorder = GazeRecorder(eyeH, _state.value.lecternHeight)
         runAccumMs = 0L
         runSinceMs = SystemClock.elapsedRealtime()
         pageSinceMs = runSinceMs

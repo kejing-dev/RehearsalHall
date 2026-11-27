@@ -485,7 +485,7 @@ internal object Figures {
     }
 
     /** Stage, curtains, back wall, screen frame, lectern (stage material). */
-    fun stage(eyeH: Float): Toon {
+    fun stage(eyeH: Float, lh: io.embodit.rehearsalhall.domain.LecternHeight = io.embodit.rehearsalhall.domain.LecternHeight.MID): Toon {
         val t = Toon(1200)
         val hw = HallLayout.STAGE_W / 2
         t.box(Vec3(-hw, HallLayout.FLOOR1_Y, HallLayout.STAGE_FRONT_Z), Vec3(hw, 0f, HallLayout.STAGE_BACK_Z + 0.4f), Palette.STAGE_WOOD)
@@ -518,7 +518,7 @@ internal object Figures {
         val sw = HallLayout.SCREEN_W / 2 + 0.12f
         t.box(Vec3(-sw, HallLayout.SCREEN_BOTTOM - 0.12f, HallLayout.SCREEN_Z + 0.02f), Vec3(sw, HallLayout.SCREEN_BOTTOM + HallLayout.SCREEN_H + 0.12f, HallLayout.SCREEN_Z + 0.08f), Palette.SCREEN_FRAME)
         // lectern: body and a top tilted 30° towards the speaker
-        val top = HallLayout.lecternTop(eyeH)
+        val top = HallLayout.lecternTop(eyeH, lh)
         val lz = HallLayout.LECTERN_Z
         t.box(Vec3(-0.26f, 0f, lz - 0.20f), Vec3(0.26f, top - 0.05f, lz + 0.16f), Palette.LECTERN)
         t.box(Vec3(-0.32f, 0f, lz - 0.24f), Vec3(0.32f, 0.06f, lz + 0.20f), Palette.LECTERN)

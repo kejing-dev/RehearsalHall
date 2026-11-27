@@ -129,6 +129,12 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
     private var p0 = Vec3.ZERO
     private var yaw0 = 0f
     private var eyeH = 1.6f
+    /** F1: the settings "lectern height" the stage mesh was built for. */
+    private var lh = io.embodit.rehearsalhall.domain.LecternHeight.MID
+    /** F1: lectern panel size factor while talking (1 = full; smaller while the speaker looks at the audience). */
+    private var lecternK = 1f
+    private var lecternLookS = 0f
+    private var lecternAwayS = 0f
     private var placed = false
 
     // lights
@@ -202,7 +208,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         model(shared.keep(Figures.house().build("house")), m.house, "house", hall)
         frame()
         model(shared.keep(Figures.glow().build("glow")), m.glow, "glow", hall)
-        stageMesh = shared.keep(Figures.stage(eyeH).build("stage"))
+        stageMesh = shared.keep(Figures.stage(eyeH, lh).build("stage"))
         model(stageMesh!!, m.stage, "stage", hall)
         frame()
         val seats = Toon(HallLayout.SEAT_COUNT * 120)
@@ -400,7 +406,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
                 stepTriggers(state, now)
             }
         }
-        placePanels(state)
+        placePanels(state, dt)
         rig.faceViewer(pose.position)
         if (now - lastLogMs > LOG_MS) {
             lastLogMs = now
@@ -471,7 +477,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         val eye = pos.y.coerceIn(1.1f, 2.0f)
         if (abs(eye - eyeH) > 0.01f || stageMesh == null) {
             eyeH = eye
-            stageMesh?.let { Figures.stage(eyeH).b.replace(it) }
+            stageMesh?.let { Figures.stage(eyeH, lh).b.replace(it) }
         }
         eyeH = eye
         HallController.eyeH = eyeH
@@ -480,6 +486,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         placed = true
         HallLog.i(String.format(Locale.US, "PLACE done P=%s yaw=%.1f eyeH=%.2f samples=%d edges=%s", HallLog.pos(p0), Math.toDegrees(yaw0.toDouble()), eyeH, placeSamples.size, Zones.edges(eyeH)))
         sink(HallEvent.SceneReady)
+        if (HallLayout.seated(eyeH)) sink(HallEvent.Seated)
     }
 
     private fun stepFade(now: Long) {
@@ -548,6 +555,9 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
     private var poolAt: Vec3? = null
     private var poolOpacity = 0f
     private val lit = HashSet<Int>()
+    private var spotZone: Int? = null
+    private var spotZoneS = 0f
+    private var spotSeat: HallLayout.Seat? = null
 
     /**
      * A soft warm pool of light on the seats where the gaze ray lands, and the listeners inside a 6° cone around the
@@ -557,7 +567,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
     private fun stepGazeLight(state: HallUiState, dt: Float) {
         val m = mats ?: return
         val p = pool ?: return
-        val active = state.base == Base.S01 || state.base == Base.S05 || state.base == Base.S06
+        val active = state.spotOn && (state.base == Base.S01 || state.base == Base.S05 || state.base == Base.S06)
         val (h, f) = gaze()
         var target: HallLayout.Seat? = null
         val nowLit = HashSet<Int>()
@@ -573,12 +583,35 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
             }
             if (best > POOL_MAX_DEG) target = null
         }
+        // F1: move only to where the gaze rests (>= SPOT_DWELL_S in one zone), not with every small head movement
+        val cand = target
+        val zone = cand?.zone
+        if (zone != spotZone) {
+            spotZone = zone
+            spotZoneS = 0f
+        } else spotZoneS += dt
+        target =
+            when {
+                cand == null -> null
+                spotSeat?.zone == zone && poolOpacity > 0.05f -> cand // same zone: follow freely
+                spotZoneS >= SPOT_DWELL_S -> cand // rested there long enough: move
+                poolOpacity > 0.05f -> spotSeat // keep the old spot while the gaze passes by
+                else -> null
+            }
+        if (target != null) spotSeat = target
         // fade and follow (about 8/s), never a hard jump
         val want = if (target != null) POOL_OPACITY else 0f
         poolOpacity += (want - poolOpacity) * (dt * 6f).coerceIn(0f, 1f)
         if (target != null) {
             val at = target.floor + Vec3(0f, POOL_LIFT, 0f)
-            poolAt = poolAt?.lerp(at, (dt * 8f).coerceIn(0f, 1f)) ?: at
+            val cur = poolAt
+            poolAt =
+                if (cur == null || poolOpacity < 0.02f) at
+                else {
+                    val step = (at - cur) * (dt * 4f).coerceIn(0f, 1f)
+                    val max = SPOT_MAX_SPEED * dt
+                    cur + if (step.length > max) step * (max / step.length) else step
+                }
         }
         p.enabled = poolOpacity > 0.01f && poolAt != null
         if (p.enabled) {
@@ -792,19 +825,33 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
 
     // ---------------------------------------------------------------- panels
 
-    private fun placePanels(state: HallUiState) {
+    private fun placePanels(state: HallUiState, dt: Float) {
         val rig = rig ?: return
         if (!placed || !built) {
             for (id in PanelIds.pool) rig[id]?.hide()
             return
         }
+        if (state.lecternHeight != lh) {
+            lh = state.lecternHeight
+            stageMesh?.let { Figures.stage(eyeH, lh).b.replace(it) }
+            HallLog.i("LECTERN height=$lh panelY=${HallLayout.panelY(eyeH, lh)} topBelow=${HallLayout.topEdgeBelowDeg(eyeH, lh)}")
+        }
+        stepLecternSize(state, dt)
         // the lectern panel keeps facing the speaker's place (no yaw swing towards the head) and tilts towards the eyes
         // within 20 ... 70°: no corner can reach the lectern below it (QA q1-1)
-        val panel = HallLayout.lecternPanel(eyeH)
+        val panel = HallLayout.lecternPanel(eyeH, lh)
         val (h, _) = local()
         val tilt = atan2(h.y - panel.y, (h.z - panel.z).coerceAtLeast(0.05f)).coerceIn(PANEL_MIN_TILT, PANEL_MAX_TILT)
         rig[PanelIds.LECTERN]?.facePoint = toStage(panel + Vec3(0f, sin(tilt), kotlin.math.cos(tilt)))
         showAt(PanelIds.LECTERN, toStage(panel))
+        rig[PanelIds.LECTERN]?.let { slot ->
+            val k = LECTERN_K * lecternK
+            if (abs(slot.scaleX - k) > 1e-4f) {
+                slot.scaleX = k
+                slot.scaleY = k
+                slot.apply()
+            }
+        }
         val signs = state.report != null && (state.base == Base.S09 || state.base == Base.S10)
         for (z in 0 until Zones.COUNT) {
             if (!signs) {
@@ -813,6 +860,33 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
             }
             showAt(PanelIds.sign(z), toStage(signPoint(z)))
         }
+    }
+
+    /**
+     * F1 (colleague feedback "the panel blocks my view"): while talking, the lectern panel shrinks to [LECTERN_SMALL]
+     * when the speaker looks at the audience for [LECTERN_AWAY_S], and grows back to full size after
+     * [LECTERN_LOOK_S] of looking down at it. Every other state keeps it full size.
+     */
+    private fun stepLecternSize(state: HallUiState, dt: Float) {
+        val want =
+            if (state.base != Base.S06) 1f
+            else {
+                val (h, f) = gaze()
+                if (GazeClassifier.classify(f, h, eyeH, Zones.edges(eyeH), lh).cls == LookClass.LECTERN) {
+                    lecternLookS += dt
+                    lecternAwayS = 0f
+                } else {
+                    lecternAwayS += dt
+                    lecternLookS = 0f
+                }
+                when {
+                    lecternLookS >= LECTERN_LOOK_S -> 1f
+                    lecternAwayS >= LECTERN_AWAY_S -> LECTERN_SMALL
+                    else -> lecternK
+                }
+            }
+        lecternK += (want - lecternK) * (dt * 5f).coerceIn(0f, 1f)
+        if (abs(want - lecternK) < 0.004f) lecternK = want
     }
 
     private fun signPoint(zone: Int): Vec3 {
@@ -922,6 +996,11 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         const val POOL_OPACITY = 0.42f
         const val POOL_D = 2.2f
         const val POOL_LIFT = 0.03f
+        const val SPOT_DWELL_S = 0.4f
+        const val SPOT_MAX_SPEED = 3.5f // m/s
+        const val LECTERN_SMALL = 0.62f
+        const val LECTERN_LOOK_S = 0.6f
+        const val LECTERN_AWAY_S = 1.0f
         const val PANEL_MIN_TILT = 0.349f // 20°
         const val PANEL_MAX_TILT = 1.222f // 70°
         val SCREEN = Vec3(0f, HallLayout.SCREEN_BOTTOM + HallLayout.SCREEN_H / 2, HallLayout.SCREEN_Z)

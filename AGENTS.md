@@ -102,6 +102,18 @@ state, design lockedByCritic). Talk time uses the wall clock (pauses / S08 stop 
   incl. shapes, table, chart, picture, notes), talk.docx, plain.docx, talk.pdf (6 p), short.pdf (5 p, mismatch).
 - Unit tests: `OfficeTest` (pptx notes / title round trip through core, partial rules, docx sections, pace).
 
+## Lectern out of the way + gaze spotlight (v0.2.1, polish F1)
+
+- 2026-11-25 colleague feedback: "the panel blocks my view" (seated). `HallLayout.panelY(eyeH, LecternHeight)` keeps the panel's
+  top edge >= 25° under the line of sight for any eye height (the old 1.05 m floor put it at eye level when seated);
+  panel 0.48 m away (LECTERN_Z -0.50). Settings "lectern height" low / middle / high (+0.08 / 0 / -0.06 m); the stage
+  mesh is rebuilt on change. Eye < 1.35 m = seated: one tip (once), nothing forced.
+- While talking (S06) the lectern panel shrinks to 62 % after 1 s of looking away from it and grows back after 0.6 s of
+  looking at it (`HallScene.stepLecternSize`, slot scale).
+- Gaze spotlight: settings switch (pref "spot"); moves to a new zone only after the gaze rests there 0.4 s, follows at
+  most 3.5 m/s; first-talk tip and two how-to rows explain it.
+- Tests: `LecternTest` (5).
+
 ## UI rules
 
 - All 2D UI is SpatialUI inside `PicoTheme`. No Material / Material3 (gate: `../spatial-app-factory/bin/material-grep.txt`).

@@ -28,7 +28,7 @@
     <string name="last_over">over by %1$s</string>
     <string name="last_time">took %1$s</string>
     <string name="tip_first_run">Look at the audience as usual. Afterwards you will see who you missed.</string>
-    <string name="tip_first_talk">Press End when you are done</string>
+    <string name="tip_first_talk">The spotlight shows who you are looking at · Press End when done</string>
     <string name="tip_interrupted">Your last rehearsal was interrupted and not saved</string>
     <string name="tip_mic_denied">No microphone permission. You can practise without it.</string>
     <string name="tip_import_capped">Over 60 pages: only the first 60 were imported</string>
@@ -212,4 +212,18 @@
     <string name="how_to_recall">Bring back to front</string>
     <string name="how_to_recall_hand">Settings, Bring back to front: the hall turns to you</string>
     <string name="how_to_recall_pad">Ray and trigger on the same key</string>
+    <string name="tip_seated">Seated is fine; lower the lectern in Settings, Lectern height</string>
+    <string name="lectern_height">Lectern height</string>
+    <string name="lectern_height_sub">Keeps the lectern panel out of your view; it shrinks while you look at the audience</string>
+    <string name="lectern_low">Low</string>
+    <string name="lectern_mid">Middle</string>
+    <string name="lectern_high">High</string>
+    <string name="spot_row">Gaze spotlight</string>
+    <string name="spot_sub">Lights the listeners you are looking at; they look back at you</string>
+    <string name="how_to_spot">Spotlight</string>
+    <string name="how_to_spot_hand">It shows where your eyes rest and moves once your gaze settles</string>
+    <string name="how_to_spot_pad">Turn it off in Settings, Gaze spotlight</string>
+    <string name="how_to_lectern">Lectern in the way</string>
+    <string name="how_to_lectern_hand">Look at the audience and the lectern shrinks; look down and it grows</string>
+    <string name="how_to_lectern_pad">Settings, Lectern height: low / middle / high</string>
 </resources>

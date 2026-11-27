@@ -59,6 +59,7 @@ import com.pico.spatial.ui.platform.Material
 import io.embodit.rehearsalhall.R
 import io.embodit.rehearsalhall.domain.Clock
 import io.embodit.rehearsalhall.domain.Deck
+import io.embodit.rehearsalhall.domain.LecternHeight
 import io.embodit.rehearsalhall.domain.Report
 import io.embodit.rehearsalhall.domain.Samples
 import io.embodit.rehearsalhall.domain.Session
@@ -163,6 +164,7 @@ private fun TipLine(tip: Tip?, onEvent: (HallEvent) -> Unit) {
             Tip.MIC_DENIED -> rs(R.string.tip_mic_denied)
             Tip.IMPORT_CAPPED -> rs(R.string.tip_import_capped)
             Tip.PICKER_MISSING -> rs(R.string.tip_picker_missing)
+            Tip.SEATED -> rs(R.string.tip_seated)
         }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -771,6 +773,29 @@ private fun androidx.compose.foundation.layout.ColumnScope.Settings(state: HallU
             trailingContent = { Switch(checked = state.driftOn, onCheckedChange = { onEvent(HallEvent.Drift(it)) }, modifier = Modifier.probe("settings_drift")) },
         )
         ListItem(
+            headlineContent = { Text(text = rs(R.string.lectern_height), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
+            supportingContent = { Text(text = rs(R.string.lectern_height_sub), maxLines = 2, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary, onTextLayout = fits("settings/lectern_sub")) },
+            trailingContent = {
+                SegmentControl(modifier = Modifier.width(330.dp).height(44.dp), backgroundColor = PicoTheme.colorScheme.fillTertiary) {
+                    listOf(LecternHeight.LOW to R.string.lectern_low, LecternHeight.MID to R.string.lectern_mid, LecternHeight.HIGH to R.string.lectern_high).forEach { (h, label) ->
+                        SegmentItem(
+                            selected = state.lecternHeight == h,
+                            onClick = { onEvent(HallEvent.SetLecternHeight(h)) },
+                            modifier = Modifier.width(110.dp).fillMaxHeight().probe("lectern_${h.name.lowercase()}"),
+                            textStyle = PicoTheme.typography.labelLarge,
+                            colors = segColors(),
+                            title = { Text(text = rs(label), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
+                        )
+                    }
+                }
+            },
+        )
+        ListItem(
+            headlineContent = { Text(text = rs(R.string.spot_row), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
+            supportingContent = { Text(text = rs(R.string.spot_sub), maxLines = 2, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary, onTextLayout = fits("settings/spot_sub")) },
+            trailingContent = { Switch(checked = state.spotOn, onCheckedChange = { onEvent(HallEvent.Spot(it)) }, modifier = Modifier.probe("settings_spot")) },
+        )
+        ListItem(
             headlineContent = { Text(text = rs(R.string.gaze_row), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
             supportingContent = {
                 val why = when (state.eyeReason) { "permission" -> rs(R.string.gaze_reason_permission); null -> ""; else -> rs(R.string.gaze_reason_unsupported) }
@@ -810,6 +835,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.HowTo(onEvent: (HallE
             Triple(R.drawable.ic_check, R.string.how_to_end, R.string.how_to_end_hand to R.string.how_to_end_pad),
             Triple(R.drawable.ic_chevron_left, R.string.how_to_back, R.string.how_to_back_hand to R.string.how_to_back_pad),
             Triple(R.drawable.ic_recenter, R.string.how_to_recall, R.string.how_to_recall_hand to R.string.how_to_recall_pad),
+            Triple(R.drawable.ic_history, R.string.how_to_spot, R.string.how_to_spot_hand to R.string.how_to_spot_pad),
+            Triple(R.drawable.ic_gear, R.string.how_to_lectern, R.string.how_to_lectern_hand to R.string.how_to_lectern_pad),
         )
     val list = rememberLazyListState()
     Box(modifier = Modifier.fillMaxWidth().weight(1f)) {

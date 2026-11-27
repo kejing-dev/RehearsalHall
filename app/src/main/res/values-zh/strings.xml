@@ -27,7 +27,7 @@
     <string name="last_over">超时 %1$s</string>
     <string name="last_time">用时 %1$s</string>
     <string name="tip_first_run">照常看观众讲，讲完告诉你哪片没看</string>
-    <string name="tip_first_talk">讲完按 结束</string>
+    <string name="tip_first_talk">追光照着的就是你在看的观众 · 讲完按 结束</string>
     <string name="tip_interrupted">上次排练中断了，没有保存</string>
     <string name="tip_mic_denied">没有拿到麦克风权限，不开也能练</string>
     <string name="tip_import_capped">超过 60 页，只导入了前 60 页</string>
@@ -207,4 +207,18 @@
     <string name="how_to_recall">叫回面前</string>
     <string name="how_to_recall_hand">设置 →「叫回面前」，礼堂和讲台转到你面前</string>
     <string name="how_to_recall_pad">射线 + 扳机点同一个键</string>
+    <string name="tip_seated">坐着也能练；讲台太高可在 设置 → 讲台高度 调低</string>
+    <string name="lectern_height">讲台高度</string>
+    <string name="lectern_height_sub">讲台面板不挡你看观众；讲的时候看观众会自动缩小</string>
+    <string name="lectern_low">低</string>
+    <string name="lectern_mid">中</string>
+    <string name="lectern_high">高</string>
+    <string name="spot_row">目光追光</string>
+    <string name="spot_sub">追光照着你正在看的观众，被看的人会看向你</string>
+    <string name="how_to_spot">追光</string>
+    <string name="how_to_spot_hand">追光 = 你的目光落在哪里，停留一下才会移过去</string>
+    <string name="how_to_spot_pad">设置 →「目光追光」可以关掉</string>
+    <string name="how_to_lectern">讲台挡视线</string>
+    <string name="how_to_lectern_hand">讲的时候看观众，讲台自动缩小；低头看它就变大</string>
+    <string name="how_to_lectern_pad">设置 →「讲台高度」选 低 / 中 / 高</string>
 </resources>

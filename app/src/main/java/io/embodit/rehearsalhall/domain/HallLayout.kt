@@ -35,7 +35,7 @@ object HallLayout {
     const val SCREEN_W = 5.0f
     const val SCREEN_H = 2.8f
     const val SCREEN_BOTTOM = 1.2f
-    const val LECTERN_Z = -0.42f
+    const val LECTERN_Z = -0.50f
     const val LECTERN_W = 0.60f
     const val LECTERN_D = 0.45f
     const val BACK_WALL_R = 13.0f
@@ -48,17 +48,38 @@ object HallLayout {
 
     fun headY(row: Int): Float = rowFloor(row) + HEAD_ABOVE_FLOOR
 
-    /** Height of the lectern panel's centre: about 0.36 m below the eyes (design: look down 35 - 45°). */
-    fun panelY(eyeH: Float): Float = (eyeH - 0.36f).coerceIn(1.05f, 1.45f)
+    /**
+     * Height of the lectern panel's centre (F1, 2026-11-25 colleague feedback "the panel blocks my view when seated"):
+     * the panel's top edge stays at least [TOP_BELOW_DEG] under the line of sight for any eye height, standing or
+     * seated (the old 1.05 m floor put it at eye level for a seated speaker). [h] = the "lectern height" setting.
+     */
+    fun panelY(eyeH: Float, h: LecternHeight = LecternHeight.MID): Float {
+        val drop = PANEL_HALF_H + kotlin.math.tan(Math.toRadians(TOP_BELOW_DEG.toDouble())).toFloat() * -(LECTERN_Z + 0.02f)
+        return (eyeH - drop - h.extraDrop).coerceIn(PANEL_MIN_Y, PANEL_MAX_Y)
+    }
+
+    /** Below this eye height the speaker is taken as seated (a one-line hint, nothing forced). */
+    const val SEATED_EYE = 1.35f
+    const val TOP_BELOW_DEG = 25f
+    const val PANEL_MIN_Y = 0.70f
+    const val PANEL_MAX_Y = 1.50f
+
+    fun seated(eyeH: Float): Boolean = eyeH < SEATED_EYE
+
+    /** Angle of the panel's top edge under the horizontal line of sight, in degrees (tests / audit). */
+    fun topEdgeBelowDeg(eyeH: Float, h: LecternHeight = LecternHeight.MID): Float {
+        val dz = -(LECTERN_Z + 0.02f)
+        return Math.toDegrees(kotlin.math.atan2((eyeH - panelY(eyeH, h) - PANEL_HALF_H).toDouble(), dz.toDouble())).toFloat()
+    }
 
     /**
      * Lectern top for an eye height. The lectern sits under the panel (QA q1-1: the panel's lower edge went into the
      * wood): the tilted top's highest edge stays [PANEL_CLEARANCE] below the lowest the panel's edge can go.
      */
-    fun lecternTop(eyeH: Float): Float = panelY(eyeH) - PANEL_HALF_H - PANEL_CLEARANCE - LECTERN_RISE
+    fun lecternTop(eyeH: Float, h: LecternHeight = LecternHeight.MID): Float = panelY(eyeH, h) - PANEL_HALF_H - PANEL_CLEARANCE - LECTERN_RISE
 
     /** Centre of the lectern panel (what "looking at the lectern" aims at). */
-    fun lecternPanel(eyeH: Float): Vec3 = Vec3(0f, panelY(eyeH), LECTERN_Z + 0.02f)
+    fun lecternPanel(eyeH: Float, h: LecternHeight = LecternHeight.MID): Vec3 = Vec3(0f, panelY(eyeH, h), LECTERN_Z + 0.02f)
 
     /** Half the panel's height (0.29 m) and the gap kept under it; the 30° top rises 0.14 m above [lecternTop] at the far edge. */
     const val PANEL_HALF_H = 0.145f
@@ -168,10 +189,10 @@ object GazeClassifier {
 
     data class Look(val cls: LookClass, val zone: Int, val yawDeg: Float, val pitchDeg: Float)
 
-    fun classify(f: Vec3, head: Vec3, eyeH: Float, edges: Zones.TierEdges): Look {
+    fun classify(f: Vec3, head: Vec3, eyeH: Float, edges: Zones.TierEdges, lh: LecternHeight = LecternHeight.MID): Look {
         val h = horizontalDeg(f)
         val p = pitchDeg(f)
-        if (angleDeg(f, HallLayout.lecternPanel(eyeH) - head) < LECTERN_DEG) return Look(LookClass.LECTERN, -1, h, p)
+        if (angleDeg(f, HallLayout.lecternPanel(eyeH, lh) - head) < LECTERN_DEG) return Look(LookClass.LECTERN, -1, h, p)
         if (hypot(f.x, f.z) > 0.05f && abs(h) > BACK_DEG) return Look(LookClass.BACK, -1, h, p)
         if (abs(h) <= FAN_H_DEG && p >= FAN_DOWN_DEG && p <= FAN_UP_DEG) {
             val tier = when {
@@ -191,3 +212,6 @@ object GazeClassifier {
         return Vec3(sin(y) * cos(p), sin(p), -cos(y) * cos(p))
     }
 }
+
+/** The settings row "lectern height" (F1): how much further down (+) or up (-) the panel sits, metres. */
+enum class LecternHeight(val extraDrop: Float) { LOW(0.08f), MID(0f), HIGH(-0.06f) }

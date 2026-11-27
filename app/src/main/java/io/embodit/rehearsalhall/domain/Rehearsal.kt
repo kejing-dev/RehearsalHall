@@ -8,7 +8,7 @@ import kotlin.math.roundToInt
  * Per-rehearsal statistics (design `gazeModel`), fed once per frame from the ECS system while the talk runs
  * (S06 only, never while paused / counting down / confirming: R2-4). Plain object, not Compose state.
  */
-class GazeRecorder(val eyeH: Float) {
+class GazeRecorder(val eyeH: Float, val lh: LecternHeight = LecternHeight.MID) {
     val edges = Zones.edges(eyeH)
     val zone = FloatArray(Zones.COUNT)
     val seat = FloatArray(HallLayout.SEAT_COUNT)
@@ -22,7 +22,7 @@ class GazeRecorder(val eyeH: Float) {
 
     /** One frame: [f] = unit forward, [head] = head position, both hall-local; [dt] seconds. */
     fun step(dt: Float, f: Vec3, head: Vec3, page: Int): GazeClassifier.Look {
-        val look = GazeClassifier.classify(f, head, eyeH, edges)
+        val look = GazeClassifier.classify(f, head, eyeH, edges, lh)
         lastLook = look
         classTotals[look.cls.ordinal] += dt
         if (look.cls == LookClass.AUDIENCE) {
