@@ -4,6 +4,10 @@
 
     <!-- Optional permissions only: microphone (volume and pauses) and eye tracking (gaze). No network. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- "本机文件" page: list and open .pptx / .docx / .pdf in Download and Documents (the user allows it on the system page) -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
     <!-- Eye gaze for "where you looked" (runtime permission; refused -> head direction). -->
     <uses-permission android:name="com.picovr.permission.EYE_TRACKING" />
 

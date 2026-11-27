@@ -10,6 +10,7 @@ enum class Base(val page: String) {
     S14("confirm"), S15("tooShort"),
     /** v0.1.3 (B19): settings -> "how to" page. */
     S16("howTo"),
+    S17("files"),
 }
 
 enum class LanguagePref { SYSTEM, ZH, EN }
@@ -45,6 +46,8 @@ data class HallUiState(
     /** F1: settings "lectern height" and "gaze follow-spot". */
     val lecternHeight: io.embodit.rehearsalhall.domain.LecternHeight = io.embodit.rehearsalhall.domain.LecternHeight.MID,
     val spotOn: Boolean = true,
+    /** Where the teleprompter shows while talking (setting). */
+    val prompter: io.embodit.rehearsalhall.domain.PrompterPlace = io.embodit.rehearsalhall.domain.PrompterPlace.LECTERN,
     val micOn: Boolean = false,
     val micPermission: MicPermission = MicPermission.UNKNOWN,
     val decks: List<Deck> = emptyList(),
@@ -62,6 +65,9 @@ data class HallUiState(
     val importDone: Int = 0,
     val importTotal: Int = 0,
     val importError: ImportError? = null,
+    /** S17 "本机文件": files in Download / Documents, and whether "All files access" is allowed. */
+    val files: List<io.embodit.rehearsalhall.domain.FileEntry> = emptyList(),
+    val filesAccess: Boolean = false,
     // report / replay / history
     val report: ReportView? = null,
     val tab: ReportTab = ReportTab.GAZE,
@@ -142,6 +148,8 @@ sealed interface HallEvent {
 
     data class Spot(val on: Boolean) : HallEvent
 
+    data class SetPrompter(val place: io.embodit.rehearsalhall.domain.PrompterPlace) : HallEvent
+
     /** From the scene once placed: the speaker's eye height says seated (F1 one-line hint). */
     data object Seated : HallEvent
     data object ClearAll : HallEvent
@@ -151,6 +159,15 @@ sealed interface HallEvent {
     data object Restart : HallEvent
     /** Settings [怎么操作] (B19). */
     data object OpenHowTo : HallEvent
+
+    /** S02 [本机文件…] → S17; [AllowFiles] opens the system "All files access" page; [OpenFile] imports one row. */
+    data object OpenFiles : HallEvent
+
+    data object AllowFiles : HallEvent
+
+    data object RefreshFiles : HallEvent
+
+    data class OpenFile(val path: String) : HallEvent
     data object ConfirmYes : HallEvent
     data object ConfirmNo : HallEvent
     data object DismissTip : HallEvent

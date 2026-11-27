@@ -226,4 +226,18 @@
     <string name="how_to_lectern">Lectern in the way</string>
     <string name="how_to_lectern_hand">Look at the audience and the lectern shrinks; look down and it grows</string>
     <string name="how_to_lectern_pad">Settings, Lectern height: low / middle / high</string>
+    <string name="prompter_row">Teleprompter</string>
+    <string name="prompter_sub">Where the notes show while you talk: lectern (look down), stage front, mid-air (see-through), above the back row</string>
+    <string name="prompter_lectern">Lectern</string>
+    <string name="prompter_front">Front</string>
+    <string name="prompter_air">Air</string>
+    <string name="prompter_back">Back</string>
+    <string name="prompter_empty">No notes on this page</string>
+    <string name="local_files">Open a local file…</string>
+    <string name="files_title">Files on this headset</string>
+    <string name="files_need_access">To list the PPT, Word and PDF files in Download and Documents, turn on "All files access" on the system page. Or pick a file with the system picker (bottom left).</string>
+    <string name="files_empty">No PPT, Word or PDF in Download or Documents. Copy a file there over USB or with the file manager, then press Refresh.</string>
+    <string name="files_allow">Allow</string>
+    <string name="files_refresh">Refresh</string>
+    <string name="files_picker">System picker…</string>
 </resources>

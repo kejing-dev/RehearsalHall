@@ -108,6 +108,7 @@ object HallController {
                 driftOn = p.getBoolean("drift", true),
                 lecternHeight = runCatching { io.embodit.rehearsalhall.domain.LecternHeight.valueOf(p.getString("lecternHeight", "MID")!!) }.getOrDefault(io.embodit.rehearsalhall.domain.LecternHeight.MID),
                 spotOn = p.getBoolean("spot", true),
+                prompter = runCatching { io.embodit.rehearsalhall.domain.PrompterPlace.valueOf(p.getString("prompter", "LECTERN")!!) }.getOrDefault(io.embodit.rehearsalhall.domain.PrompterPlace.LECTERN),
                 micOn = p.getBoolean("micOn", false) && micPerm == MicPermission.GRANTED,
                 micPermission = micPerm,
                 deckId = p.getString("deck", Deck.SAMPLE_ID) ?: Deck.SAMPLE_ID,
@@ -321,6 +322,10 @@ object HallController {
                 prefs?.edit()?.putString("lecternHeight", e.h.name)?.apply()
                 update("!lectern ${e.h}") { it.copy(lecternHeight = e.h) }
             }
+            is HallEvent.SetPrompter -> {
+                prefs?.edit()?.putString("prompter", e.place.name)?.apply()
+                update("!prompter ${e.place}") { it.copy(prompter = e.place) }
+            }
             is HallEvent.Spot -> {
                 prefs?.edit()?.putBoolean("spot", e.on)?.apply()
                 update("!spot") { it.copy(spotOn = e.on) }
@@ -332,6 +337,21 @@ object HallController {
             HallEvent.Quit -> update("confirm exit") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.EXIT, Base.S11)) }
             HallEvent.Restart -> if (s.base == Base.S07) update("confirm restart") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.RESTART, Base.S07)) }
             HallEvent.OpenHowTo -> go(Base.S16)
+            HallEvent.OpenFiles -> {
+                go(Base.S17)
+                refreshFiles()
+            }
+            HallEvent.RefreshFiles -> refreshFiles()
+            HallEvent.AllowFiles -> {
+                val ok = app?.let { io.embodit.rehearsalhall.platform.LocalFiles.requestAllFiles(it) } == true
+                HallLog.i("FILES allow page opened=$ok")
+                if (!ok) update("!no files page") { it.copy(tip = Tip.PICKER_MISSING) }
+            }
+            is HallEvent.OpenFile -> {
+                val f = app?.let { io.embodit.rehearsalhall.platform.LocalFiles.copyIn(it, e.path) }
+                HallLog.i("FILES open ${e.path} copied=${f != null}")
+                if (f != null) importFiles(listOf(f)) else update("import error") { it.copy(base = Base.S04, importError = ImportError.FAILED) }
+            }
             HallEvent.ClearAll -> update("confirm clear") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.CLEAR_ALL, Base.S11)) }
             HallEvent.ConfirmYes -> {
                 val cf = s.confirm ?: return go(Base.S01)
@@ -382,6 +402,7 @@ object HallController {
             Base.S08 -> onEvent(HallEvent.KeepTalking)
             Base.S10 -> onEvent(HallEvent.ReplayBack)
             Base.S16 -> go(Base.S11)
+            Base.S17 -> go(Base.S02)
             Base.S02, Base.S11, Base.S13, Base.S15 -> go(Base.S01)
             Base.S12 -> go(Base.S01)
             Base.S04 -> go(Base.S02)
@@ -705,6 +726,17 @@ object HallController {
         importFiles(files)
     }
 
+    /** S17: reads the file list off the main thread; also called when the app comes back from the system permission page. */
+    fun refreshFiles() {
+        if (_state.value.base != Base.S17) return
+        scope.launch {
+            val access = io.embodit.rehearsalhall.platform.LocalFiles.hasAccess
+            val list = withContext(Dispatchers.IO) { io.embodit.rehearsalhall.platform.LocalFiles.list() }
+            HallLog.i("FILES access=$access count=${list.size}")
+            update("!files ${list.size}") { it.copy(files = list, filesAccess = access) }
+        }
+    }
+
     /** What the open picker is for besides a new deck: (NOTES | PDF, deck id). */
     private var pickFor: Pair<PickerActivity.Mode, String>? = null
 
@@ -827,6 +859,7 @@ object HallController {
             "S14" -> update("debug") { it.copy(base = Base.S14, confirm = Confirm(ConfirmKind.CLEAR_ALL, Base.S11)) }
             "S15" -> update("debug") { it.copy(base = Base.S15, lights = Lights.ENTRY) }
             "S16" -> go(Base.S16)
+            "S17" -> onEvent(HallEvent.OpenFiles)
         }
     }
 

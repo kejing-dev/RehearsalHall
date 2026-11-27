@@ -68,10 +68,11 @@ class HallFrameSystem : System() {
 
 object PanelIds {
     const val LECTERN = "lectern"
+    const val PROMPTER = "prompter"
 
     fun sign(i: Int) = "sign$i"
 
-    val pool: List<String> = listOf(LECTERN) + (0 until Zones.COUNT).map { sign(it) }
+    val pool: List<String> = listOf(LECTERN, PROMPTER) + (0 until Zones.COUNT).map { sign(it) }
 }
 
 /**
@@ -175,6 +176,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         this.rig = rig
         rig.world(PanelIds.LECTERN, PanelSizes.LECTERN_W, PanelSizes.LECTERN_H, LECTERN_K).maxPitch = 1.4f
         for (i in 0 until Zones.COUNT) rig.world(PanelIds.sign(i), PanelSizes.SIGN_W, PanelSizes.SIGN_H, SIGN_K).maxPitch = 0.6f
+        rig.world(PanelIds.PROMPTER, PanelSizes.PROMPTER_W, PanelSizes.PROMPTER_H, 1f).maxPitch = 0.9f
         head.start()
         triggers.start()
         eyes.start()
@@ -852,6 +854,15 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
                 slot.apply()
             }
         }
+        // the teleprompter (setting): a read-only panel out among the audience while counting down / talking / paused
+        val pc = io.embodit.rehearsalhall.domain.Prompter.centre(state.prompter, eyeH)
+        if (pc != null && state.base in PROMPTER_STATES && !state.noSlides) {
+            val k = io.embodit.rehearsalhall.domain.Prompter.widthM(state.prompter, eyeH) / (PanelSizes.PROMPTER_W * DP_M)
+            val slot = rig[PanelIds.PROMPTER]
+            if (slot != null) {
+                if (slot.shown && abs(slot.scaleX - k) < 1e-4f) slot.moveTo(toStage(pc)) else slot.show(toStage(pc), k, k)
+            }
+        } else rig[PanelIds.PROMPTER]?.hide()
         val signs = state.report != null && (state.base == Base.S09 || state.base == Base.S10)
         for (z in 0 until Zones.COUNT) {
             if (!signs) {
@@ -996,6 +1007,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         const val POOL_OPACITY = 0.42f
         const val POOL_D = 2.2f
         const val POOL_LIFT = 0.03f
+        val PROMPTER_STATES = setOf(Base.S05, Base.S06, Base.S07)
         const val SPOT_DWELL_S = 0.4f
         const val SPOT_MAX_SPEED = 3.5f // m/s
         const val LECTERN_SMALL = 0.62f

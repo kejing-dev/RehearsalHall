@@ -1,5 +1,15 @@
 package io.embodit.rehearsalhall.ui.hall.components
 
+import io.embodit.rehearsalhall.domain.PrompterPlace
+import io.embodit.rehearsalhall.domain.Prompter
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.LinearEasing
 import android.content.res.Resources
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -59,6 +69,7 @@ import com.pico.spatial.ui.platform.Material
 import io.embodit.rehearsalhall.R
 import io.embodit.rehearsalhall.domain.Clock
 import io.embodit.rehearsalhall.domain.Deck
+import io.embodit.rehearsalhall.domain.FileList
 import io.embodit.rehearsalhall.domain.LecternHeight
 import io.embodit.rehearsalhall.domain.Report
 import io.embodit.rehearsalhall.domain.Samples
@@ -134,6 +145,7 @@ internal fun LecternPanel(state: HallUiState?, onEvent: (HallEvent) -> Unit) {
                 Base.S14 -> ConfirmPage(state, onEvent)
                 Base.S15 -> TooShort(onEvent)
                 Base.S16 -> HowTo(onEvent)
+                Base.S17 -> Files(state, onEvent)
             }
         }
     }
@@ -366,7 +378,52 @@ private fun androidx.compose.foundation.layout.ColumnScope.Decks(state: HallUiSt
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
         Text(text = rs(R.string.import_hint), style = HallType.label, color = PicoTheme.colorScheme.labelSecondary, modifier = Modifier.weight(1f), maxLines = 3)
         Spacer(Modifier.width(12.dp))
-        Primary(rs(R.string.import_files), "decks_import", large = false) { onEvent(HallEvent.ImportFiles) }
+        Primary(rs(R.string.local_files), "decks_files", large = false) { onEvent(HallEvent.OpenFiles) }
+    }
+}
+
+/** S17 "本机文件": the headset's Download / Documents, one tap opens a deck or a script (like Spatial Office's browser). */
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.Files(state: HallUiState, onEvent: (HallEvent) -> Unit) {
+    val r = LocalHallResources.current
+    TitleBar(rs(R.string.files_title), onBack = { onEvent(HallEvent.Back) })
+    TipLine(state.tip?.takeIf { it == Tip.PICKER_MISSING }, onEvent)
+    val list = rememberLazyListState()
+    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+        when {
+            !state.filesAccess -> Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+                Text(text = rs(R.string.files_need_access), style = HallType.titleMedium, color = PicoTheme.colorScheme.labelPrimary, maxLines = 4, onTextLayout = fits("files/need"))
+            }
+            state.files.isEmpty() -> Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+                Text(text = rs(R.string.files_empty), style = HallType.titleMedium, color = PicoTheme.colorScheme.labelPrimary, maxLines = 4, onTextLayout = fits("files/empty"))
+            }
+            else -> {
+                LazyColumn(state = list, modifier = Modifier.fillMaxSize()) {
+                    items(state.files, key = { it.path }) { f ->
+                        ListItem(
+                            leadingContent = {
+                                Box(Modifier.size(56.dp, 40.dp).clip(RoundedCornerShape(10.dp)).background(PicoTheme.colorScheme.fillTertiary), contentAlignment = Alignment.Center) {
+                                    Text(text = when (f.kind) { FileList.Kind.PPT -> "PPT"; FileList.Kind.DOC -> "DOC"; FileList.Kind.PDF -> "PDF" }, style = HallType.label, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1)
+                                }
+                            },
+                            headlineContent = { Text(text = f.name, maxLines = 2, overflow = TextOverflow.Ellipsis, color = PicoTheme.colorScheme.labelPrimary, onTextLayout = fits("files/name")) },
+                            supportingContent = {
+                                val date = SimpleDateFormat(if (r.zh()) "M月d日 HH:mm" else "MMM d HH:mm", if (r.zh()) Locale.CHINA else Locale.US).format(Date(f.modified))
+                                Text(text = f.where + " · " + FileList.size(f.bytes) + " · " + date, maxLines = 1, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary)
+                            },
+                            modifier = Modifier.clickable { onEvent(HallEvent.OpenFile(f.path)) }.probe("file_${f.name}"),
+                        )
+                    }
+                }
+                ScrollIndicator(state = list)
+            }
+        }
+    }
+    BottomRow {
+        Secondary(rs(R.string.files_picker), "files_picker") { onEvent(HallEvent.ImportFiles) }
+        Spacer(Modifier.weight(1f))
+        if (!state.filesAccess) Primary(rs(R.string.files_allow), "files_allow") { onEvent(HallEvent.AllowFiles) }
+        else Secondary(rs(R.string.files_refresh), "files_refresh") { onEvent(HallEvent.RefreshFiles) }
     }
 }
 
@@ -773,6 +830,24 @@ private fun androidx.compose.foundation.layout.ColumnScope.Settings(state: HallU
             trailingContent = { Switch(checked = state.driftOn, onCheckedChange = { onEvent(HallEvent.Drift(it)) }, modifier = Modifier.probe("settings_drift")) },
         )
         ListItem(
+            headlineContent = { Text(text = rs(R.string.prompter_row), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
+            supportingContent = { Text(text = rs(R.string.prompter_sub), maxLines = 2, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary, onTextLayout = fits("settings/prompter_sub")) },
+            trailingContent = {
+                SegmentControl(modifier = Modifier.width(352.dp).height(44.dp), backgroundColor = PicoTheme.colorScheme.fillTertiary) {
+                    listOf(PrompterPlace.LECTERN to R.string.prompter_lectern, PrompterPlace.FRONT to R.string.prompter_front, PrompterPlace.AIR to R.string.prompter_air, PrompterPlace.BACK to R.string.prompter_back).forEach { (pl, label) ->
+                        SegmentItem(
+                            selected = state.prompter == pl,
+                            onClick = { onEvent(HallEvent.SetPrompter(pl)) },
+                            modifier = Modifier.width(88.dp).fillMaxHeight().probe("prompter_${pl.name.lowercase()}"),
+                            textStyle = PicoTheme.typography.labelLarge,
+                            colors = segColors(),
+                            title = { Text(text = rs(label), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
+                        )
+                    }
+                }
+            },
+        )
+        ListItem(
             headlineContent = { Text(text = rs(R.string.lectern_height), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
             supportingContent = { Text(text = rs(R.string.lectern_height_sub), maxLines = 2, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary, onTextLayout = fits("settings/lectern_sub")) },
             trailingContent = {
@@ -928,6 +1003,54 @@ private fun androidx.compose.foundation.layout.ColumnScope.ConfirmPage(state: Ha
 // =============================================================================================
 // zone signs (design panels[1]): "左后 · 0 秒" + ◯ / ◐ / ●, read-only
 // =============================================================================================
+
+/**
+ * The teleprompter (read-only, no keys): timer, page number and the current page's notes in large type. Long notes
+ * scroll with the time spent on the page at a calm reading pace. AIR is half transparent so the listeners show through.
+ */
+@Composable
+internal fun PrompterPanel(state: HallUiState?) {
+    val air = state?.prompter == PrompterPlace.AIR
+    Box(
+        modifier =
+            Modifier.size(PanelSizes.PROMPTER_W.dp, PanelSizes.PROMPTER_H.dp)
+                .clip(GlassShape)
+                .background(Color.Black.copy(alpha = if (air) 0.38f else 0.72f))
+                .backKeys("prompter")
+    ) {
+        if (state == null) return@Box
+        val deck = state.deck ?: return@Box
+        val note = deck.notes.getOrNull(state.page).orEmpty()
+        val ink = Color.White.copy(alpha = if (air) 0.92f else 1f)
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(text = Clock.mmss2(state.elapsedSec) + " / " + Clock.mmss2(state.targetSec.toFloat()), style = HallType.sign, color = if (state.overTime || state.nearTime) HallColors.Alert else ink, maxLines = 1)
+                Spacer(Modifier.weight(1f))
+                Text(text = "${state.page + 1} / ${deck.pageCount}", style = HallType.sign, color = ink.copy(alpha = 0.75f), maxLines = 1)
+            }
+            Spacer(Modifier.height(8.dp))
+            Box(modifier = Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
+                if (note.isBlank()) {
+                    Text(text = rs(R.string.prompter_empty), style = HallType.prompter, color = ink.copy(alpha = 0.6f), maxLines = 2)
+                } else {
+                    var textH by remember(note) { mutableStateOf(0) }
+                    var boxH by remember { mutableStateOf(0) }
+                    val target = if (state.base == Base.S05) 0f else Prompter.scroll(note, state.pageSec)
+                    val k by animateFloatAsState(targetValue = target, animationSpec = tween(900, easing = LinearEasing), label = "prompter")
+                    val shift = ((textH - boxH).coerceAtLeast(0) * k).roundToInt()
+                    Box(modifier = Modifier.fillMaxSize().onSizeChanged { boxH = it.height }) {
+                        Text(
+                            text = note,
+                            style = HallType.prompter,
+                            color = ink,
+                            modifier = Modifier.fillMaxWidth().wrapContentHeight(align = Alignment.Top, unbounded = true).offset { IntOffset(0, -shift) }.onSizeChanged { textH = it.height },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 internal fun ZoneSign(state: HallUiState?, zone: Int) {

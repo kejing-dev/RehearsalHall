@@ -106,6 +106,10 @@ object HallType {
     val label: TextStyle
         @Composable get() = PicoTheme.typography.labelMedium.copy(fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum, lnum")
 
+    /** Teleprompter notes: the 760 dp panel spans 30° of view (the lectern spans ~50°), so 34 sp reads like 20 sp there. */
+    val prompter: TextStyle
+        @Composable get() = PicoTheme.typography.titleLarge.copy(fontSize = 34.sp, lineHeight = 46.sp, fontWeight = FontWeight.Medium)
+
     /** Zone signs: a 96 dp panel scaled to 0.36 m, read from 6 - 12 m. */
     val sign: TextStyle
         @Composable get() = PicoTheme.typography.titleLarge.copy(fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum, lnum")

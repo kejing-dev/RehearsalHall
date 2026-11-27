@@ -115,3 +115,34 @@ object Script {
             l.substring(0, minOf(cut + 1, l.length)).let { if (it.length > 60) it.take(58) + "…" else it }
         }
 }
+
+/** One file on the headset that the hall can open (the "本机文件" page). */
+data class FileEntry(val path: String, val name: String, val where: String, val bytes: Long, val modified: Long) {
+    val kind: FileList.Kind get() = FileList.kind(name) ?: FileList.Kind.PDF
+}
+
+object FileList {
+    enum class Kind { PPT, DOC, PDF }
+
+    /** What the hall opens from the file list: .pptx, .docx, .pdf (images come through the system picker). */
+    fun kind(name: String): Kind? {
+        val n = name.lowercase()
+        return when {
+            n.startsWith("~$") -> null // Office lock files
+            n.endsWith(".pptx") -> Kind.PPT
+            n.endsWith(".docx") -> Kind.DOC
+            n.endsWith(".pdf") -> Kind.PDF
+            else -> null
+        }
+    }
+
+    /** Newest first; presentations and documents before PDFs of the same minute; at most [MAX] rows. */
+    fun sort(files: List<FileEntry>): List<FileEntry> =
+        files.sortedWith(compareByDescending<FileEntry> { it.modified / 60_000 }.thenBy { it.kind.ordinal }.thenBy { it.name.lowercase() }).take(MAX)
+
+    /** "1.2 MB" / "340 KB". */
+    fun size(bytes: Long): String =
+        if (bytes >= 1_000_000) String.format(java.util.Locale.US, "%.1f MB", bytes / 1_000_000f) else String.format(java.util.Locale.US, "%d KB", (bytes / 1000).coerceAtLeast(1))
+
+    const val MAX = 200
+}

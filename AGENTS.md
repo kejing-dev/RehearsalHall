@@ -114,6 +114,21 @@ state, design lockedByCritic). Talk time uses the wall clock (pauses / S08 stop 
   most 3.5 m/s; first-talk tip and two how-to rows explain it.
 - Tests: `LecternTest` (5).
 
+## Teleprompter places + local files (v0.3.0)
+
+- Setting "teleprompter" (`PrompterPlace` LECTERN / FRONT / AIR / BACK, pref "prompter"): besides the look-down lectern, a
+  read-only panel (`PanelIds.PROMPTER`, 760 x 300 dp, `PrompterPanel`) shows timer, page and the page's notes in S05 /
+  S06 / S07. `domain Prompter` places it: FRONT = stage edge, top edge just under the first row's faces; AIR = 5 m out,
+  3° under the horizon, 38 % black (see-through); BACK = on the back wall, lower edge 0.3 m over the last row's heads.
+  Every place spans 30° of view (scale from distance). Long notes scroll with the page time at 250 CJK chars / 130
+  words a minute.
+- "本机文件" page (S17, S02 [打开本机文件…]): `platform/LocalFiles` lists .pptx / .docx / .pdf in Download and Documents
+  (2 levels), newest first; a tap copies the file into cache and imports it. Needs MANAGE_EXTERNAL_STORAGE ("All files
+  access", same as Spatial Office); without it the page explains and offers [去允许] (system page) and [系统选择器…].
+  The list refreshes on ON_START (back from the permission page).
+- Debug: `prompter lectern|front|air|back`, `lectern low|mid|high`, `spot on|off`, `files`, `openFile <path>`.
+- Tests: `PrompterTest` (6).
+
 ## UI rules
 
 - All 2D UI is SpatialUI inside `PicoTheme`. No Material / Material3 (gate: `../spatial-app-factory/bin/material-grep.txt`).

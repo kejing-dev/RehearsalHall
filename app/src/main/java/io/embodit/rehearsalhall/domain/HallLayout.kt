@@ -215,3 +215,74 @@ object GazeClassifier {
 
 /** The settings row "lectern height" (F1): how much further down (+) or up (-) the panel sits, metres. */
 enum class LecternHeight(val extraDrop: Float) { LOW(0.08f), MID(0f), HIGH(-0.06f) }
+
+/**
+ * Where the teleprompter (current page's notes, timer, page number) is shown while talking (2026-11-27 user: "put the
+ * prompter above the last row, or under the first row, or floating half transparent in mid-air; keep the look-down
+ * lectern too; a setting picks the place"). LECTERN = only the lectern panel (look down), no extra panel.
+ */
+enum class PrompterPlace { LECTERN, FRONT, AIR, BACK }
+
+object Prompter {
+    /** Angular width of the prompter panel as seen from the speaker's place, any place: text stays the same size. */
+    const val WIDTH_DEG = 30f
+    /** FRONT: on the stage edge, under the first row's faces. */
+    const val FRONT_DIST = 1.9f
+    const val FRONT_DOWN_DEG = 22f
+    /** AIR: over the aisle among the middle rows, a little under the horizon, half transparent. */
+    const val AIR_DIST = 5.0f
+    const val AIR_DOWN_DEG = 3f
+    /** BACK: on the back wall above the last row's heads. */
+    const val BACK_ABOVE_HEADS = 0.3f
+    /** Panel height / width (300 / 760 dp) and its angular height. */
+    const val ASPECT = 300f / 760f
+    const val HEIGHT_DEG = WIDTH_DEG * ASPECT
+
+    /** Centre of the prompter panel, hall-local (the audience is towards -z); null for [PrompterPlace.LECTERN]. */
+    fun centre(place: PrompterPlace, eyeH: Float): Vec3? =
+        when (place) {
+            PrompterPlace.LECTERN -> null
+            PrompterPlace.FRONT -> {
+                // top edge just under the first row's faces (they sit lower the taller the speaker stands)
+                val faces = Math.toDegrees(kotlin.math.atan2((HallLayout.headY(0) - eyeH).toDouble(), HallLayout.rowRadius(0).toDouble())).toFloat()
+                polar(FRONT_DIST, minOf(-FRONT_DOWN_DEG, faces - HEIGHT_DEG / 2 - 0.5f), eyeH)
+            }
+            PrompterPlace.AIR -> polar(AIR_DIST, -AIR_DOWN_DEG, eyeH)
+            PrompterPlace.BACK -> {
+                // lower edge BACK_ABOVE_HEADS over the last row's heads: the panel is ~7 m wide out there
+                val r = HallLayout.rowRadius(HallLayout.ROWS - 1) + 0.5f
+                val heads = HallLayout.headY(HallLayout.ROWS - 1)
+                val d = kotlin.math.hypot(r, heads + 1.6f - eyeH)
+                val halfH = d * kotlin.math.tan(Math.toRadians(WIDTH_DEG / 2.0)).toFloat() * ASPECT
+                Vec3(0f, heads + BACK_ABOVE_HEADS + halfH, -r)
+            }
+        }
+
+    private fun polar(dist: Float, pitchDeg: Float, eyeH: Float): Vec3 {
+        val a = Math.toRadians(pitchDeg.toDouble())
+        return Vec3(0f, eyeH + (dist * kotlin.math.sin(a)).toFloat(), -(dist * kotlin.math.cos(a)).toFloat())
+    }
+
+    /** Panel width in metres so that it spans [WIDTH_DEG] from the eyes. */
+    fun widthM(place: PrompterPlace, eyeH: Float): Float {
+        val c = centre(place, eyeH) ?: return 0f
+        val d = (c - Vec3(0f, eyeH, 0f)).length
+        return 2f * d * kotlin.math.tan(Math.toRadians(WIDTH_DEG / 2.0)).toFloat()
+    }
+
+    /** Pitch of the panel centre from the eyes, degrees (+ up). */
+    fun pitchDeg(place: PrompterPlace, eyeH: Float): Float {
+        val c = centre(place, eyeH) ?: return 0f
+        return Math.toDegrees(kotlin.math.atan2((c.y - eyeH).toDouble(), kotlin.math.hypot(c.x, c.z).toDouble())).toFloat()
+    }
+
+    /** Seconds a speaker needs for [text] at a calm pace (250 CJK characters or 130 words a minute), at least 8 s. */
+    fun readSeconds(text: String): Float {
+        val cjk = text.count { it.code in 0x3400..0x9FFF }
+        val words = Regex("[A-Za-z0-9']+").findAll(text).count()
+        return ((cjk / 250f + words / 130f) * 60f).coerceAtLeast(8f)
+    }
+
+    /** 0..1: how far the prompter text has scrolled [pageSec] into a page whose notes are [text]. */
+    fun scroll(text: String, pageSec: Float): Float = (pageSec / readSeconds(text)).coerceIn(0f, 1f)
+}

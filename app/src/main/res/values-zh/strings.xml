@@ -221,4 +221,18 @@
     <string name="how_to_lectern">讲台挡视线</string>
     <string name="how_to_lectern_hand">讲的时候看观众，讲台自动缩小；低头看它就变大</string>
     <string name="how_to_lectern_pad">设置 →「讲台高度」选 低 / 中 / 高</string>
+    <string name="prompter_row">提词器位置</string>
+    <string name="prompter_sub">讲的时候备注显示在哪：讲台（低头看）、台前、空中半透明、后墙上方</string>
+    <string name="prompter_lectern">讲台</string>
+    <string name="prompter_front">台前</string>
+    <string name="prompter_air">空中</string>
+    <string name="prompter_back">后墙</string>
+    <string name="prompter_empty">这一页没有备注</string>
+    <string name="local_files">打开本机文件…</string>
+    <string name="files_title">本机文件</string>
+    <string name="files_need_access">要列出头显里「下载」和「文档」文件夹的 PPT、Word、PDF，需要你在系统页面打开「所有文件访问权限」。不想开的话，用左下角的系统选择器也能选文件。</string>
+    <string name="files_empty">「下载」和「文档」文件夹里没有 PPT、Word 或 PDF。用 USB 或文件管理器把文件放进去，再点 刷新。</string>
+    <string name="files_allow">去允许</string>
+    <string name="files_refresh">刷新</string>
+    <string name="files_picker">系统选择器…</string>
 </resources>

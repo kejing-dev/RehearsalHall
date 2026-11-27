@@ -64,6 +64,7 @@ fun HallScreen() {
                     }
                     Lifecycle.Event.ON_START -> {
                         scene.resume()
+                        HallController.refreshFiles() // back from the system "All files access" page
                         HallController.onEvent(HallEvent.Background(false))
                     }
                     else -> Unit

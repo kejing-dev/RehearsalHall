@@ -29,6 +29,8 @@ import java.io.File
  *   importPath <file>[|<file>]                imports without the picker (.pdf / images / .pptx / .docx; "x.pptx|x.pdf" = PPT notes + PDF pictures)
  *   importPictures <deck> <pdf> | importNotes <deck> <txt/pptx/docx>   the deck row ⋯ actions
  *   target <min> | deck sample|none|<id>      target length / select a deck
+ *   prompter lectern|front|air|back | lectern low|mid|high | spot on|off   settings (F1)
+ *   files | openFile <path>                   the "本机文件" page / open one of its rows
  *   tab gaze|time|voice | replay | done | again
  *   lang system|zh|en | drift on|off | replace
  *   firstRun reset | killFlag                 M5 again / simulate a kill during a talk (M8 on next start)
@@ -102,6 +104,11 @@ object DebugCommands {
                 if (cmd == "importpictures") c.importPictures(args[0], out) else c.debugImportNotes(args[0], out)
             }
             "target" -> c.debugTarget(args[0].toInt())
+            "prompter" -> c.onEvent(HallEvent.SetPrompter(io.embodit.rehearsalhall.domain.PrompterPlace.valueOf(args[0].uppercase())))
+            "lectern" -> c.onEvent(HallEvent.SetLecternHeight(io.embodit.rehearsalhall.domain.LecternHeight.valueOf(args[0].uppercase())))
+            "spot" -> c.onEvent(HallEvent.Spot(args.firstOrNull() != "off"))
+            "files" -> c.onEvent(HallEvent.OpenFiles)
+            "openfile" -> c.onEvent(HallEvent.OpenFile(args.joinToString(" ")))
             "deck" -> c.onEvent(HallEvent.PickDeck(args[0]))
             "tab" -> c.onEvent(HallEvent.Tab(ReportTab.valueOf(args[0].uppercase())))
             "replay" -> c.onEvent(HallEvent.Replay)
