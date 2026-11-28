@@ -235,4 +235,6 @@
     <string name="files_allow">去允许</string>
     <string name="files_refresh">刷新</string>
     <string name="files_picker">系统选择器…</string>
+    <string name="story_row">故事线横条</string>
+    <string name="story_sub">讲的时候把各页要点横着排成一行，台前和后墙上方各显示一条，当前页高亮</string>
 </resources>

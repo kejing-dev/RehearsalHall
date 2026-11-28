@@ -31,6 +31,8 @@ internal fun HallStage(state: HallUiState, scene: HallScene, onEvent: (HallEvent
         attachments = {
             AttachmentPanel(PanelIds.LECTERN) { PoolPanel(PanelIds.LECTERN, scene) { inView -> LecternPanel(if (inView) state else null, onEvent) } }
             AttachmentPanel(PanelIds.PROMPTER) { PoolPanel(PanelIds.PROMPTER, scene) { inView -> PrompterPanel(if (inView) state else null) } }
+            AttachmentPanel(PanelIds.STORY_FRONT) { PoolPanel(PanelIds.STORY_FRONT, scene) { inView -> StorylinePanel(if (inView) state else null) } }
+            AttachmentPanel(PanelIds.STORY_BACK) { PoolPanel(PanelIds.STORY_BACK, scene) { inView -> StorylinePanel(if (inView) state else null) } }
             for (z in 0 until Zones.COUNT) {
                 AttachmentPanel(PanelIds.sign(z)) { PoolPanel(PanelIds.sign(z), scene) { inView -> ZoneSign(if (inView) state else null, z) } }
             }

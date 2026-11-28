@@ -50,4 +50,6 @@ object PanelSizes {
     const val SIGN_H = 96f
     const val PROMPTER_W = 760f
     const val PROMPTER_H = 300f
+    const val STORY_W = 1520f
+    const val STORY_H = 140f
 }

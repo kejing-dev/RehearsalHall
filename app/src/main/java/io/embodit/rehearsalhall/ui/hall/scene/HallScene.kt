@@ -72,7 +72,10 @@ object PanelIds {
 
     fun sign(i: Int) = "sign$i"
 
-    val pool: List<String> = listOf(LECTERN, PROMPTER) + (0 until Zones.COUNT).map { sign(it) }
+    const val STORY_FRONT = "storyFront"
+    const val STORY_BACK = "storyBack"
+
+    val pool: List<String> = listOf(LECTERN, PROMPTER, STORY_FRONT, STORY_BACK) + (0 until Zones.COUNT).map { sign(it) }
 }
 
 /**
@@ -177,6 +180,8 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         rig.world(PanelIds.LECTERN, PanelSizes.LECTERN_W, PanelSizes.LECTERN_H, LECTERN_K).maxPitch = 1.4f
         for (i in 0 until Zones.COUNT) rig.world(PanelIds.sign(i), PanelSizes.SIGN_W, PanelSizes.SIGN_H, SIGN_K).maxPitch = 0.6f
         rig.world(PanelIds.PROMPTER, PanelSizes.PROMPTER_W, PanelSizes.PROMPTER_H, 1f).maxPitch = 0.9f
+        rig.world(PanelIds.STORY_FRONT, PanelSizes.STORY_W, PanelSizes.STORY_H, 1f).maxPitch = 0.9f
+        rig.world(PanelIds.STORY_BACK, PanelSizes.STORY_W, PanelSizes.STORY_H, 1f).maxPitch = 0.9f
         head.start()
         triggers.start()
         eyes.start()
@@ -863,6 +868,15 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
                 if (slot.shown && abs(slot.scaleX - k) < 1e-4f) slot.moveTo(toStage(pc)) else slot.show(toStage(pc), k, k)
             }
         } else rig[PanelIds.PROMPTER]?.hide()
+        // the storyline strip (setting): the pages in a row, on the stage edge and above the last row
+        for ((id, place) in STORY_SLOTS) {
+            val slot = rig[id] ?: continue
+            if (state.storyline && state.base in PROMPTER_STATES && !state.noSlides && io.embodit.rehearsalhall.domain.Storyline.shown(place, state.prompter)) {
+                val c = io.embodit.rehearsalhall.domain.Storyline.centre(place, eyeH)
+                val k = io.embodit.rehearsalhall.domain.Storyline.widthM(place, eyeH) / (PanelSizes.STORY_W * DP_M)
+                if (slot.shown && abs(slot.scaleX - k) < 1e-4f) slot.moveTo(toStage(c)) else slot.show(toStage(c), k, k)
+            } else slot.hide()
+        }
         val signs = state.report != null && (state.base == Base.S09 || state.base == Base.S10)
         for (z in 0 until Zones.COUNT) {
             if (!signs) {
@@ -1008,6 +1022,7 @@ class HallScene(private val sink: (HallEvent) -> Unit) {
         const val POOL_D = 2.2f
         const val POOL_LIFT = 0.03f
         val PROMPTER_STATES = setOf(Base.S05, Base.S06, Base.S07)
+        val STORY_SLOTS = listOf(PanelIds.STORY_FRONT to io.embodit.rehearsalhall.domain.Storyline.Place.FRONT, PanelIds.STORY_BACK to io.embodit.rehearsalhall.domain.Storyline.Place.BACK)
         const val SPOT_DWELL_S = 0.4f
         const val SPOT_MAX_SPEED = 3.5f // m/s
         const val LECTERN_SMALL = 0.62f

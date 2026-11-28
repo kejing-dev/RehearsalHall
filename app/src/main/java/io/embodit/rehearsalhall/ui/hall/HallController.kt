@@ -108,6 +108,7 @@ object HallController {
                 driftOn = p.getBoolean("drift", true),
                 lecternHeight = runCatching { io.embodit.rehearsalhall.domain.LecternHeight.valueOf(p.getString("lecternHeight", "MID")!!) }.getOrDefault(io.embodit.rehearsalhall.domain.LecternHeight.MID),
                 spotOn = p.getBoolean("spot", true),
+                storyline = p.getBoolean("storyline", false),
                 prompter = runCatching { io.embodit.rehearsalhall.domain.PrompterPlace.valueOf(p.getString("prompter", "LECTERN")!!) }.getOrDefault(io.embodit.rehearsalhall.domain.PrompterPlace.LECTERN),
                 micOn = p.getBoolean("micOn", false) && micPerm == MicPermission.GRANTED,
                 micPermission = micPerm,
@@ -325,6 +326,10 @@ object HallController {
             is HallEvent.SetPrompter -> {
                 prefs?.edit()?.putString("prompter", e.place.name)?.apply()
                 update("!prompter ${e.place}") { it.copy(prompter = e.place) }
+            }
+            is HallEvent.SetStoryline -> {
+                prefs?.edit()?.putBoolean("storyline", e.on)?.apply()
+                update("!storyline ${e.on}") { it.copy(storyline = e.on) }
             }
             is HallEvent.Spot -> {
                 prefs?.edit()?.putBoolean("spot", e.on)?.apply()

@@ -2,6 +2,8 @@ package io.embodit.rehearsalhall.ui.hall.components
 
 import io.embodit.rehearsalhall.domain.PrompterPlace
 import io.embodit.rehearsalhall.domain.Prompter
+import androidx.compose.ui.unit.sp
+import io.embodit.rehearsalhall.domain.Storyline
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.clipToBounds
@@ -866,6 +868,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.Settings(state: HallU
             },
         )
         ListItem(
+            headlineContent = { Text(text = rs(R.string.story_row), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
+            supportingContent = { Text(text = rs(R.string.story_sub), maxLines = 2, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary, onTextLayout = fits("settings/story_sub")) },
+            trailingContent = { Switch(checked = state.storyline, onCheckedChange = { onEvent(HallEvent.SetStoryline(it)) }, modifier = Modifier.probe("settings_storyline")) },
+        )
+        ListItem(
             headlineContent = { Text(text = rs(R.string.spot_row), maxLines = 1, color = PicoTheme.colorScheme.labelPrimary) },
             supportingContent = { Text(text = rs(R.string.spot_sub), maxLines = 2, style = HallType.label, color = PicoTheme.colorScheme.labelSecondary, onTextLayout = fits("settings/spot_sub")) },
             trailingContent = { Switch(checked = state.spotOn, onCheckedChange = { onEvent(HallEvent.Spot(it)) }, modifier = Modifier.probe("settings_spot")) },
@@ -1046,6 +1053,46 @@ internal fun PrompterPanel(state: HallUiState?) {
                             modifier = Modifier.fillMaxWidth().wrapContentHeight(align = Alignment.Top, unbounded = true).offset { IntOffset(0, -shift) }.onSizeChanged { textH = it.height },
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The storyline strip (read-only): the timer, then the talk's pages in a row. Each card is a page number and the first
+ * words of that page's notes; the current page is lit, pages already told are dimmed.
+ */
+@Composable
+internal fun StorylinePanel(state: HallUiState?) {
+    Box(
+        modifier =
+            Modifier.size(PanelSizes.STORY_W.dp, PanelSizes.STORY_H.dp)
+                .clip(GlassShape)
+                .background(Color.Black.copy(alpha = 0.72f))
+                .backKeys("storyline")
+    ) {
+        if (state == null) return@Box
+        val deck = state.deck ?: return@Box
+        Row(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.width(132.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = Clock.mmss2(state.elapsedSec), style = HallType.sign, color = if (state.overTime || state.nearTime) HallColors.Alert else Color.White, maxLines = 1)
+                Text(text = "${state.page + 1} / ${deck.pageCount}", style = HallType.sign, color = Color.White.copy(alpha = 0.7f), maxLines = 1)
+            }
+            for (i in Storyline.window(state.page, deck.pageCount)) {
+                val now = i == state.page
+                val ink = if (now) Color.Black else Color.White.copy(alpha = if (i < state.page) 0.42f else 0.9f)
+                val label = Storyline.label(deck.notes.getOrNull(i).orEmpty())
+                Column(
+                    modifier =
+                        Modifier.weight(1f).fillMaxHeight().padding(horizontal = 5.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (now) Color.White.copy(alpha = 0.94f) else Color.White.copy(alpha = if (i < state.page) 0.05f else 0.12f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(text = "${i + 1}", style = if (label.isEmpty()) HallType.prompter else HallType.label.copy(fontSize = 18.sp, lineHeight = 22.sp), color = ink.copy(alpha = ink.alpha * 0.8f), maxLines = 1)
+                    if (label.isNotEmpty()) Text(text = label, style = HallType.sign, color = ink, maxLines = 2, onTextLayout = fits("story/label"))
                 }
             }
         }

@@ -45,7 +45,8 @@ class PrompterTest {
             val back = Prompter.centre(PrompterPlace.BACK, e)!!
             val lowEdge = back.y - Prompter.widthM(PrompterPlace.BACK, e) * PROMPTER_ASPECT / 2
             assertTrue("above the last row's heads", lowEdge > HallLayout.headY(HallLayout.ROWS - 1) + 0.1f)
-            assertTrue("inside the hall", -back.z < HallLayout.BACK_WALL_R && back.y < HallLayout.CEILING_Y)
+            assertTrue("inside the hall", back.y < HallLayout.CEILING_Y)
+            assertTrue("corners inside the curved back wall", kotlin.math.hypot(back.z, Prompter.widthM(PrompterPlace.BACK, e) / 2) < HallLayout.BACK_WALL_R - 0.3f)
         }
     }
 

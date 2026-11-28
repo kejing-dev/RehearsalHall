@@ -240,4 +240,6 @@
     <string name="files_allow">Allow</string>
     <string name="files_refresh">Refresh</string>
     <string name="files_picker">System picker…</string>
+    <string name="story_row">Storyline strip</string>
+    <string name="story_sub">While you talk, the pages in a row with the current one lit: one strip at the stage front, one above the back row</string>
 </resources>

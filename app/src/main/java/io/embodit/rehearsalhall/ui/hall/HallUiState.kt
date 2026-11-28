@@ -46,6 +46,8 @@ data class HallUiState(
     /** F1: settings "lectern height" and "gaze follow-spot". */
     val lecternHeight: io.embodit.rehearsalhall.domain.LecternHeight = io.embodit.rehearsalhall.domain.LecternHeight.MID,
     val spotOn: Boolean = true,
+    /** The storyline strip (setting): pages in a row on the stage edge and above the last row while talking. */
+    val storyline: Boolean = false,
     /** Where the teleprompter shows while talking (setting). */
     val prompter: io.embodit.rehearsalhall.domain.PrompterPlace = io.embodit.rehearsalhall.domain.PrompterPlace.LECTERN,
     val micOn: Boolean = false,
@@ -147,6 +149,8 @@ sealed interface HallEvent {
     data class SetLecternHeight(val h: io.embodit.rehearsalhall.domain.LecternHeight) : HallEvent
 
     data class Spot(val on: Boolean) : HallEvent
+
+    data class SetStoryline(val on: Boolean) : HallEvent
 
     data class SetPrompter(val place: io.embodit.rehearsalhall.domain.PrompterPlace) : HallEvent
 

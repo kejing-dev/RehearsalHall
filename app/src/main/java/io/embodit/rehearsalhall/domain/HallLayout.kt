@@ -234,6 +234,8 @@ object Prompter {
     const val AIR_DOWN_DEG = 3f
     /** BACK: on the back wall above the last row's heads. */
     const val BACK_ABOVE_HEADS = 0.3f
+    /** BACK: distance of the flat panel; its corners must stay inside the curved back wall (radius 13 m). */
+    const val BACK_R = 12.0f
     /** Panel height / width (300 / 760 dp) and its angular height. */
     const val ASPECT = 300f / 760f
     const val HEIGHT_DEG = WIDTH_DEG * ASPECT
@@ -250,7 +252,7 @@ object Prompter {
             PrompterPlace.AIR -> polar(AIR_DIST, -AIR_DOWN_DEG, eyeH)
             PrompterPlace.BACK -> {
                 // lower edge BACK_ABOVE_HEADS over the last row's heads: the panel is ~7 m wide out there
-                val r = HallLayout.rowRadius(HallLayout.ROWS - 1) + 0.5f
+                val r = BACK_R
                 val heads = HallLayout.headY(HallLayout.ROWS - 1)
                 val d = kotlin.math.hypot(r, heads + 1.6f - eyeH)
                 val halfH = d * kotlin.math.tan(Math.toRadians(WIDTH_DEG / 2.0)).toFloat() * ASPECT
@@ -258,7 +260,7 @@ object Prompter {
             }
         }
 
-    private fun polar(dist: Float, pitchDeg: Float, eyeH: Float): Vec3 {
+    internal fun polar(dist: Float, pitchDeg: Float, eyeH: Float): Vec3 {
         val a = Math.toRadians(pitchDeg.toDouble())
         return Vec3(0f, eyeH + (dist * kotlin.math.sin(a)).toFloat(), -(dist * kotlin.math.cos(a)).toFloat())
     }
@@ -285,4 +287,79 @@ object Prompter {
 
     /** 0..1: how far the prompter text has scrolled [pageSec] into a page whose notes are [text]. */
     fun scroll(text: String, pageSec: Float): Float = (pageSec / readSeconds(text)).coerceIn(0f, 1f)
+}
+
+/**
+ * The storyline strip (2026-11-27 user: "a toggle for a horizontal, storyline-like board that shows up top too: readable
+ * both down in front and across above the last row"). One wide, low panel with the talk's pages in a row (number + the
+ * first words of the page's notes), the current page lit. With the setting on it shows in two places at once: on the
+ * stage edge under the first row's faces, and on the back wall above the last row. Where the teleprompter already sits
+ * ([PrompterPlace.FRONT] / [PrompterPlace.BACK]) that strip is left out: the prompter keeps its spot.
+ */
+object Storyline {
+    enum class Place { FRONT, BACK }
+
+    /** Twice the prompter's width: 7 page cards side by side at the prompter's type size. */
+    const val WIDTH_DEG = 60f
+    const val ASPECT = 140f / 1520f
+    const val HEIGHT_DEG = WIDTH_DEG * ASPECT
+    /** Page cards on the strip. */
+    const val SLOTS = 7
+    /** Card label budget: a CJK character counts 2, anything else 1. */
+    const val LABEL_BUDGET = 24
+    const val FRONT_UNDER_FACES_DEG = 4.5f
+    const val BACK_R = 10.6f
+    const val BACK_CLEAR_M = 0.6f
+
+    fun shown(place: Place, prompter: PrompterPlace): Boolean =
+        when (place) {
+            Place.FRONT -> prompter != PrompterPlace.FRONT
+            Place.BACK -> prompter != PrompterPlace.BACK
+        }
+
+    fun centre(place: Place, eyeH: Float): Vec3 =
+        when (place) {
+            Place.FRONT -> {
+                val faces = Math.toDegrees(kotlin.math.atan2((HallLayout.headY(0) - eyeH).toDouble(), HallLayout.rowRadius(0).toDouble())).toFloat()
+                // the listeners' faces reach ~4 degrees under their head centres as drawn (emulator 2026-11-27)
+                Prompter.polar(Prompter.FRONT_DIST, faces - HEIGHT_DEG / 2 - FRONT_UNDER_FACES_DEG, eyeH)
+            }
+            Place.BACK -> {
+                // 60 degrees wide: flat on the back wall its ends would be behind the curved wall, so it hangs nearer
+                // (BACK_R), with its lower edge on the sight line that passes BACK_CLEAR_M over the last row's heads
+                val last = HallLayout.ROWS - 1
+                val low = Math.toDegrees(kotlin.math.atan2((HallLayout.headY(last) + BACK_CLEAR_M - eyeH).toDouble(), HallLayout.rowRadius(last).toDouble())).toFloat()
+                val pitch = low + HEIGHT_DEG / 2
+                Prompter.polar(BACK_R / kotlin.math.cos(Math.toRadians(pitch.toDouble())).toFloat(), pitch, eyeH)
+            }
+        }
+
+    /** Panel width in metres so that it spans [WIDTH_DEG] from the eyes. */
+    fun widthM(place: Place, eyeH: Float): Float {
+        val d = (centre(place, eyeH) - Vec3(0f, eyeH, 0f)).length
+        return 2f * d * kotlin.math.tan(Math.toRadians(WIDTH_DEG / 2.0)).toFloat()
+    }
+
+    /** The pages on the strip: [SLOTS] in a row with the current page in the middle where the deck allows it. */
+    fun window(page: Int, count: Int, slots: Int = SLOTS): IntRange {
+        if (count <= 0) return IntRange.EMPTY
+        if (count <= slots) return 0 until count
+        val first = (page - slots / 2).coerceIn(0, count - slots)
+        return first until first + slots
+    }
+
+    /** A card's words: the start of the page's notes up to the first punctuation mark, at most [LABEL_BUDGET] wide. */
+    fun label(note: String): String {
+        val line = note.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() } ?: return ""
+        val cut = line.indexOfFirst { it in "，。；：！？、,.;:!?" }.takeIf { it >= 2 } ?: line.length
+        val head = line.substring(0, cut).trim()
+        var w = 0
+        val sb = StringBuilder()
+        for (ch in head) {
+            w += if (ch.code in 0x2E80..0x9FFF || ch.code in 0xFF00..0xFFEF) 2 else 1
+            if (w > LABEL_BUDGET) return sb.toString().trimEnd() + "…"
+            sb.append(ch)
+        }
+        return sb.toString()
+    }
 }

@@ -107,6 +107,7 @@ object DebugCommands {
             "prompter" -> c.onEvent(HallEvent.SetPrompter(io.embodit.rehearsalhall.domain.PrompterPlace.valueOf(args[0].uppercase())))
             "lectern" -> c.onEvent(HallEvent.SetLecternHeight(io.embodit.rehearsalhall.domain.LecternHeight.valueOf(args[0].uppercase())))
             "spot" -> c.onEvent(HallEvent.Spot(args.firstOrNull() != "off"))
+            "storyline" -> c.onEvent(HallEvent.SetStoryline(args.firstOrNull() != "off"))
             "files" -> c.onEvent(HallEvent.OpenFiles)
             "openfile" -> c.onEvent(HallEvent.OpenFile(args.joinToString(" ")))
             "deck" -> c.onEvent(HallEvent.PickDeck(args[0]))
