@@ -157,7 +157,7 @@ object Importer {
         val used = slides.take(total)
         val partial = used.count { SlideCheck.partial(it) }
         HallLog.i("IMPORT pptx pages=$total partial=$partial notes=${used.count { it.notes.isNotBlank() }}")
-        val d = Deck(id, SlideCheck.title(used, file.nameWithoutExtension), Deck.SOURCE_PPTX, total, used.map { it.notes.trim() }, total.coerceIn(1, 60), System.currentTimeMillis(), partial)
+        val d = Deck(id, SlideCheck.title(used, file.nameWithoutExtension), Deck.SOURCE_PPTX, total, used.map { it.notes.trim() }, total.coerceIn(1, 60), System.currentTimeMillis(), partial, used.map { SlideCheck.pageTitle(it) })
         return d to (slides.size > Deck.MAX_PAGES)
     }
 
@@ -178,7 +178,7 @@ object Importer {
         val minutes = Script.minutes(all)
         HallLog.i("IMPORT docx sections=$total minutes=$minutes")
         val title = Script.title(doc.blocks, file.nameWithoutExtension)
-        return Deck(id, title, Deck.SOURCE_DOCX, total, all.map { it.text }, minutes, System.currentTimeMillis()) to false
+        return Deck(id, title, Deck.SOURCE_DOCX, total, all.map { it.text }, minutes, System.currentTimeMillis(), titles = all.map { it.title }) to false
     }
 
     /**

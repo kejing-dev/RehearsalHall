@@ -61,6 +61,18 @@ class StorylineTest {
     }
 
     @Test
+    fun cardPrefersThePageTitleAndThePrompterFallsBackToIt() {
+        assertEquals("我做过什么", Storyline.card("我做过什么", "把一个项目讲成小故事：问题、结果。"))
+        assertEquals("把一个项目讲成小故事", Storyline.card(" ", "把一个项目讲成小故事：问题、结果。"))
+        assertEquals("", Storyline.card("", ""))
+        assertEquals("一、背景，以及为什么是现…", Storyline.card("一、背景，以及为什么是现在要做这件事", ""))
+        val d = Deck("d", "t", Deck.SOURCE_PPTX, 3, listOf("", "讲这个", ""), 3, 0L, titles = listOf("封面", "第二页"))
+        assertEquals("封面", d.prompt(0))
+        assertEquals("讲这个", d.prompt(1))
+        assertEquals("", d.prompt(2))
+    }
+
+    @Test
     fun labelIsTheStartOfTheNotes() {
         assertEquals("", Storyline.label("  \n "))
         assertEquals("大家好", Storyline.label("\n大家好，我是今天的分享人。"))

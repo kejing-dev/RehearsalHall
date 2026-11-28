@@ -23,6 +23,10 @@ object SlideCheck {
             else -> false
         }
 
+    /** One slide's title text ("" when it has no title placeholder or the placeholder is empty). */
+    fun pageTitle(slide: Slide): String =
+        slide.shapes.firstOrNull { it.kind == ShapeKind.TITLE }?.paras?.joinToString(" ") { it.text.trim() }?.trim()?.take(60).orEmpty()
+
     fun luma(rgb: Int): Float = (0.299f * (rgb shr 16 and 0xFF) + 0.587f * (rgb shr 8 and 0xFF) + 0.114f * (rgb and 0xFF)) / 255f
 
     /** Deck title: the first slide's title text, else the file name. */

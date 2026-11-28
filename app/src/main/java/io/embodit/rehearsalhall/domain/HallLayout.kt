@@ -348,7 +348,21 @@ object Storyline {
         return first until first + slots
     }
 
-    /** A card's words: the start of the page's notes up to the first punctuation mark, at most [LABEL_BUDGET] wide. */
+    /** A card's words: the page's title when it has one, else the start of its notes (2026-11-27 user: "use the page title"). */
+    fun card(title: String, note: String): String = if (title.isNotBlank()) fit(title.trim()) else label(note)
+
+    private fun fit(text: String): String {
+        var w = 0
+        val sb = StringBuilder()
+        for (ch in text) {
+            w += if (ch.code in 0x2E80..0x9FFF || ch.code in 0xFF00..0xFFEF) 2 else 1
+            if (w > LABEL_BUDGET) return sb.toString().trimEnd() + "…"
+            sb.append(ch)
+        }
+        return sb.toString()
+    }
+
+    /** The start of the page's notes up to the first punctuation mark, at most [LABEL_BUDGET] wide. */
     fun label(note: String): String {
         val line = note.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() } ?: return ""
         val cut = line.indexOfFirst { it in "，。；：！？、,.;:!?" }.takeIf { it >= 2 } ?: line.length

@@ -1027,7 +1027,7 @@ internal fun PrompterPanel(state: HallUiState?) {
     ) {
         if (state == null) return@Box
         val deck = state.deck ?: return@Box
-        val note = deck.notes.getOrNull(state.page).orEmpty()
+        val note = deck.prompt(state.page)
         val ink = Color.White.copy(alpha = if (air) 0.92f else 1f)
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -1082,7 +1082,7 @@ internal fun StorylinePanel(state: HallUiState?) {
             for (i in Storyline.window(state.page, deck.pageCount)) {
                 val now = i == state.page
                 val ink = if (now) Color.Black else Color.White.copy(alpha = if (i < state.page) 0.42f else 0.9f)
-                val label = Storyline.label(deck.notes.getOrNull(i).orEmpty())
+                val label = Storyline.card(deck.pageTitle(i), deck.notes.getOrNull(i).orEmpty())
                 Column(
                     modifier =
                         Modifier.weight(1f).fillMaxHeight().padding(horizontal = 5.dp)

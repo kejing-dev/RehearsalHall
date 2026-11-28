@@ -260,7 +260,14 @@ data class Deck(
     val createdAt: Long,
     /** Pages of a .pptx deck with something the slide painter shows only as a dashed frame (charts, SmartArt). */
     val partial: Int = 0,
+    /** Page titles (a .pptx slide's title, a .docx section's heading); empty for other sources and older decks. */
+    val titles: List<String> = emptyList(),
 ) {
+    fun pageTitle(page: Int): String = titles.getOrNull(page).orEmpty()
+
+    /** What the prompter shows for a page: its notes, or its title when it has no notes (2026-11-27 user). */
+    fun prompt(page: Int): String = notes.getOrNull(page).orEmpty().ifBlank { pageTitle(page) }
+
     val noSlides: Boolean
         get() = source == SOURCE_NONE
 

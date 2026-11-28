@@ -201,3 +201,4 @@ Emulator notes: panels change 2 - 4 s after a command; the emulator renders at 1
 
 - Setting 「故事线横条」 (`HallUiState.storyline`, pref `storyline`, debug `storyline [off]`): `StorylinePanel` (1520×140 dp, 60° wide) on two pool slots `storyFront` / `storyBack`, shown in S05/S06/S07. Placement and rules in `domain/HallLayout.kt` `Storyline` (front: under first-row faces; back: above last-row heads; the slot where the teleprompter sits is left out). Cards = page number + `Storyline.label(notes)`; 7 cards, window centred on the current page. Tests: `StorylineTest`.
 - Icon: `tools/make_icon.py` draws everything (3D layers, sdf, adaptive `drawable-nodpi/ic_launcher_bg|fg.png`); rerun it after any change, do not hand-edit the PNGs.
+- v0.3.2: `Deck.titles` (pptx slide title / docx section heading, saved in the deck json; empty for older decks). Storyline cards use `Storyline.card(title, note)` (title first); the prompter shows `Deck.prompt(page)` (notes, else the title).
